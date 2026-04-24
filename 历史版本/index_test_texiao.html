@@ -1,0 +1,830 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Aurora — 极光</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=Noto+Sans+SC:wght@300;400;600;800&display=swap');
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg: #0a0a0f;
+      --surface: #12121a;
+      --border: rgba(255,255,255,0.06);
+      --text: #e8e8ed;
+      --text-dim: #6b6b80;
+      --accent: #6c5ce7;
+      --accent-glow: rgba(108,92,231,0.4);
+      --gradient-1: #6c5ce7;
+      --gradient-2: #a29bfe;
+      --gradient-3: #fd79a8;
+      --gradient-4: #fdcb6e;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Inter', 'Noto Sans SC', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      overflow-x: hidden;
+      line-height: 1.6;
+    }
+
+    /* === Aurora Background === */
+    .aurora {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      pointer-events: none;
+      overflow: hidden;
+    }
+
+    .aurora-blob {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(120px);
+      opacity: 0.3;
+      animation: float 20s ease-in-out infinite;
+    }
+
+    .aurora-blob:nth-child(1) {
+      width: 600px; height: 600px;
+      background: var(--gradient-1);
+      top: -200px; left: -100px;
+      animation-delay: 0s;
+    }
+    .aurora-blob:nth-child(2) {
+      width: 500px; height: 500px;
+      background: var(--gradient-3);
+      top: 50%; right: -150px;
+      animation-delay: -7s;
+      animation-duration: 25s;
+    }
+    .aurora-blob:nth-child(3) {
+      width: 400px; height: 400px;
+      background: var(--gradient-4);
+      bottom: -100px; left: 30%;
+      animation-delay: -14s;
+      animation-duration: 22s;
+    }
+
+    @keyframes float {
+      0%, 100% { transform: translate(0, 0) scale(1); }
+      25% { transform: translate(80px, -60px) scale(1.1); }
+      50% { transform: translate(-40px, 40px) scale(0.95); }
+      75% { transform: translate(60px, 20px) scale(1.05); }
+    }
+
+    /* === Grid Pattern === */
+    .grid-pattern {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      pointer-events: none;
+      background-image:
+        linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
+      background-size: 60px 60px;
+      mask-image: radial-gradient(ellipse at 50% 50%, black 30%, transparent 70%);
+    }
+
+    /* === Navigation === */
+    nav {
+      position: fixed;
+      top: 0;
+      width: 100%;
+      z-index: 100;
+      padding: 20px 40px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      backdrop-filter: blur(20px);
+      background: rgba(10,10,15,0.6);
+      border-bottom: 1px solid var(--border);
+      transition: all 0.3s ease;
+    }
+
+    .logo {
+      font-size: 1.4rem;
+      font-weight: 800;
+      background: linear-gradient(135deg, var(--gradient-1), var(--gradient-3));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      letter-spacing: -0.5px;
+    }
+
+    .nav-links {
+      display: flex;
+      gap: 32px;
+      list-style: none;
+    }
+
+    .nav-links a {
+      color: var(--text-dim);
+      text-decoration: none;
+      font-size: 0.9rem;
+      font-weight: 400;
+      transition: color 0.3s;
+      position: relative;
+    }
+
+    .nav-links a:hover { color: var(--text); }
+
+    .nav-links a::after {
+      content: '';
+      position: absolute;
+      bottom: -4px;
+      left: 0;
+      width: 0;
+      height: 2px;
+      background: linear-gradient(90deg, var(--gradient-1), var(--gradient-3));
+      transition: width 0.3s;
+      border-radius: 2px;
+    }
+
+    .nav-links a:hover::after { width: 100%; }
+
+    /* === Content === */
+    .content { position: relative; z-index: 1; }
+
+    /* === Hero === */
+    .hero {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      padding: 120px 40px 80px;
+    }
+
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 16px;
+      border: 1px solid var(--border);
+      border-radius: 100px;
+      font-size: 0.8rem;
+      color: var(--text-dim);
+      margin-bottom: 32px;
+      backdrop-filter: blur(10px);
+      background: rgba(255,255,255,0.03);
+      animation: fadeInUp 0.8s ease both;
+    }
+
+    .hero-badge .dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: #00b894;
+      animation: pulse 2s ease infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(1.5); }
+    }
+
+    .hero h1 {
+      font-size: clamp(3rem, 8vw, 6rem);
+      font-weight: 800;
+      letter-spacing: -2px;
+      line-height: 1.05;
+      margin-bottom: 24px;
+      animation: fadeInUp 0.8s ease 0.1s both;
+    }
+
+    .hero h1 .gradient-text {
+      background: linear-gradient(135deg, var(--gradient-1), var(--gradient-2), var(--gradient-3));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-size: 200% 200%;
+      animation: gradientShift 6s ease infinite;
+    }
+
+    @keyframes gradientShift {
+      0%, 100% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+    }
+
+    .hero p {
+      font-size: clamp(1rem, 2vw, 1.25rem);
+      color: var(--text-dim);
+      max-width: 600px;
+      margin-bottom: 48px;
+      font-weight: 300;
+      animation: fadeInUp 0.8s ease 0.2s both;
+    }
+
+    .hero-buttons {
+      display: flex;
+      gap: 16px;
+      animation: fadeInUp 0.8s ease 0.3s both;
+    }
+
+    .btn {
+      padding: 14px 32px;
+      border-radius: 12px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      text-decoration: none;
+      transition: all 0.3s ease;
+      cursor: pointer;
+      border: none;
+      font-family: inherit;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--gradient-1), var(--gradient-2));
+      color: white;
+      box-shadow: 0 4px 24px var(--accent-glow);
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 32px var(--accent-glow);
+    }
+
+    .btn-ghost {
+      background: rgba(255,255,255,0.05);
+      color: var(--text);
+      border: 1px solid var(--border);
+      backdrop-filter: blur(10px);
+    }
+
+    .btn-ghost:hover {
+      background: rgba(255,255,255,0.1);
+      transform: translateY(-2px);
+    }
+
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateY(30px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* === Scroll Indicator === */
+    .scroll-indicator {
+      position: absolute;
+      bottom: 40px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      color: var(--text-dim);
+      font-size: 0.75rem;
+      animation: fadeInUp 0.8s ease 0.5s both;
+    }
+
+    .scroll-line {
+      width: 1px;
+      height: 40px;
+      background: linear-gradient(to bottom, var(--accent), transparent);
+      animation: scrollPulse 2s ease infinite;
+    }
+
+    @keyframes scrollPulse {
+      0%, 100% { opacity: 0.3; transform: scaleY(0.5); transform-origin: top; }
+      50% { opacity: 1; transform: scaleY(1); }
+    }
+
+    /* === Section Common === */
+    section { padding: 120px 40px; }
+
+    .section-label {
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 3px;
+      color: var(--accent);
+      margin-bottom: 16px;
+      font-weight: 600;
+    }
+
+    .section-title {
+      font-size: clamp(2rem, 4vw, 3rem);
+      font-weight: 800;
+      letter-spacing: -1px;
+      margin-bottom: 16px;
+    }
+
+    .section-desc {
+      color: var(--text-dim);
+      max-width: 560px;
+      font-weight: 300;
+      font-size: 1.05rem;
+      margin-bottom: 64px;
+    }
+
+    /* === Features === */
+    .features { max-width: 1200px; margin: 0 auto; }
+
+    .features-header { text-align: center; margin-bottom: 80px; }
+    .features-header .section-desc { margin: 0 auto 0; }
+
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 24px;
+    }
+
+    .feature-card {
+      padding: 36px;
+      border-radius: 20px;
+      border: 1px solid var(--border);
+      background: rgba(255,255,255,0.02);
+      backdrop-filter: blur(10px);
+      transition: all 0.4s ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .feature-card::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: 20px;
+      padding: 1px;
+      background: linear-gradient(135deg, transparent 40%, var(--accent) 100%);
+      -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+      -webkit-mask-composite: xor;
+      mask-composite: exclude;
+      opacity: 0;
+      transition: opacity 0.4s;
+    }
+
+    .feature-card:hover::before { opacity: 1; }
+
+    .feature-card:hover {
+      transform: translateY(-4px);
+      background: rgba(255,255,255,0.04);
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    }
+
+    .feature-icon {
+      width: 48px;
+      height: 48px;
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.4rem;
+      margin-bottom: 20px;
+      background: linear-gradient(135deg, rgba(108,92,231,0.15), rgba(162,155,254,0.1));
+      border: 1px solid rgba(108,92,231,0.2);
+    }
+
+    .feature-card h3 {
+      font-size: 1.15rem;
+      font-weight: 600;
+      margin-bottom: 10px;
+    }
+
+    .feature-card p {
+      color: var(--text-dim);
+      font-size: 0.9rem;
+      font-weight: 300;
+      line-height: 1.7;
+    }
+
+    /* === Stats === */
+    .stats {
+      max-width: 1000px;
+      margin: 0 auto;
+      padding: 80px 0;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 32px;
+      text-align: center;
+    }
+
+    .stat-item { padding: 24px; }
+
+    .stat-number {
+      font-size: clamp(2.2rem, 4vw, 3rem);
+      font-weight: 800;
+      background: linear-gradient(135deg, var(--gradient-1), var(--gradient-3));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      letter-spacing: -1px;
+    }
+
+    .stat-label {
+      color: var(--text-dim);
+      font-size: 0.85rem;
+      margin-top: 8px;
+      font-weight: 300;
+    }
+
+    /* === Showcase === */
+    .showcase {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .showcase-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+      margin-top: 64px;
+    }
+
+    .showcase-card {
+      border-radius: 20px;
+      border: 1px solid var(--border);
+      background: rgba(255,255,255,0.02);
+      overflow: hidden;
+      transition: all 0.4s ease;
+    }
+
+    .showcase-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    }
+
+    .showcase-card.featured {
+      grid-column: span 2;
+      display: grid;
+      grid-template-columns: 1.2fr 1fr;
+    }
+
+    .showcase-visual {
+      min-height: 280px;
+      background: linear-gradient(135deg, var(--surface), rgba(108,92,231,0.1));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .showcase-card.featured .showcase-visual { min-height: 360px; }
+
+    .showcase-visual .orb {
+      width: 160px;
+      height: 160px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--gradient-1), var(--gradient-3));
+      filter: blur(40px);
+      opacity: 0.6;
+      animation: orbFloat 8s ease-in-out infinite;
+    }
+
+    .showcase-visual .orb:nth-child(2) {
+      width: 100px;
+      height: 100px;
+      background: var(--gradient-4);
+      position: absolute;
+      right: 20%;
+      top: 20%;
+      animation-delay: -3s;
+    }
+
+    @keyframes orbFloat {
+      0%, 100% { transform: translate(0, 0); }
+      50% { transform: translate(20px, -20px); }
+    }
+
+    .showcase-info {
+      padding: 32px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+
+    .showcase-info h3 {
+      font-size: 1.3rem;
+      font-weight: 600;
+      margin-bottom: 12px;
+    }
+
+    .showcase-info p {
+      color: var(--text-dim);
+      font-size: 0.9rem;
+      font-weight: 300;
+      line-height: 1.7;
+    }
+
+    .showcase-tags {
+      display: flex;
+      gap: 8px;
+      margin-top: 16px;
+      flex-wrap: wrap;
+    }
+
+    .tag {
+      padding: 4px 12px;
+      border-radius: 100px;
+      font-size: 0.75rem;
+      background: rgba(108,92,231,0.1);
+      color: var(--gradient-2);
+      border: 1px solid rgba(108,92,231,0.2);
+    }
+
+    /* === CTA === */
+    .cta-section {
+      max-width: 800px;
+      margin: 0 auto;
+      text-align: center;
+      padding: 120px 40px;
+    }
+
+    .cta-section .section-title {
+      font-size: clamp(2rem, 5vw, 3.5rem);
+      margin-bottom: 24px;
+    }
+
+    .cta-section p {
+      color: var(--text-dim);
+      font-size: 1.1rem;
+      font-weight: 300;
+      margin-bottom: 48px;
+      max-width: 500px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    /* === Footer === */
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 40px;
+      text-align: center;
+      color: var(--text-dim);
+      font-size: 0.85rem;
+      font-weight: 300;
+    }
+
+    footer a {
+      color: var(--gradient-2);
+      text-decoration: none;
+    }
+
+    /* === Responsive === */
+    @media (max-width: 768px) {
+      nav { padding: 16px 20px; }
+      .nav-links { display: none; }
+      section { padding: 80px 20px; }
+      .hero { padding: 100px 20px 60px; }
+      .hero-buttons { flex-direction: column; align-items: center; }
+      .showcase-grid { grid-template-columns: 1fr; }
+      .showcase-card.featured { grid-column: span 1; grid-template-columns: 1fr; }
+      .stats-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    /* === Reveal Animation === */
+    .reveal {
+      opacity: 0;
+      transform: translateY(40px);
+      transition: all 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .reveal.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Aurora Background -->
+  <div class="aurora">
+    <div class="aurora-blob"></div>
+    <div class="aurora-blob"></div>
+    <div class="aurora-blob"></div>
+  </div>
+  <div class="grid-pattern"></div>
+
+  <!-- Navigation -->
+  <nav>
+    <div class="logo">Aurora</div>
+    <ul class="nav-links">
+      <li><a href="#features">功能</a></li>
+      <li><a href="#showcase">展示</a></li>
+      <li><a href="#stats">数据</a></li>
+      <li><a href="#cta">开始</a></li>
+    </ul>
+  </nav>
+
+  <!-- Hero -->
+  <div class="content">
+    <section class="hero">
+      <div class="hero-badge">
+        <span class="dot"></span>
+        全新发布 v2.0
+      </div>
+      <h1>
+        创造未来的<br>
+        <span class="gradient-text">无限可能</span>
+      </h1>
+      <p>以优雅的设计与强大的性能，重新定义你与数字世界的交互方式。让每一个像素都充满意义。</p>
+      <div class="hero-buttons">
+        <a href="#cta" class="btn btn-primary">立即体验</a>
+        <a href="#features" class="btn btn-ghost">了解更多</a>
+      </div>
+      <div class="scroll-indicator">
+        <span>向下滚动</span>
+        <div class="scroll-line"></div>
+      </div>
+    </section>
+
+    <!-- Features -->
+    <section id="features">
+      <div class="features">
+        <div class="features-header reveal">
+          <div class="section-label">核心功能</div>
+          <h2 class="section-title">为你而生的每一个细节</h2>
+          <p class="section-desc">从底层架构到视觉呈现，每一处都经过精心打磨，只为给你带来极致体验。</p>
+        </div>
+        <div class="features-grid">
+          <div class="feature-card reveal">
+            <div class="feature-icon">&#9889;</div>
+            <h3>闪电般的速度</h3>
+            <p>基于 WebAssembly 核心引擎，实现亚毫秒级响应。无论数据规模多大，始终保持流畅如丝。</p>
+          </div>
+          <div class="feature-card reveal">
+            <div class="feature-icon">&#127912;</div>
+            <h3>自适应设计系统</h3>
+            <p>智能感知环境与偏好，自动调整色彩、布局与交互模式，让设计永远恰如其分。</p>
+          </div>
+          <div class="feature-card reveal">
+            <div class="feature-icon">&#128274;</div>
+            <h3>端到端加密</h3>
+            <p>军事级别的安全防护，数据全程加密传输与存储，你的隐私由你掌控。</p>
+          </div>
+          <div class="feature-card reveal">
+            <div class="feature-icon">&#127759;</div>
+            <h3>全球化部署</h3>
+            <p>覆盖 42 个区域的边缘节点，无论身在何处，都能享受低延迟的本地化体验。</p>
+          </div>
+          <div class="feature-card reveal">
+            <div class="feature-icon">&#129302;</div>
+            <h3>AI 智能助手</h3>
+            <p>内置深度学习引擎，理解你的工作流，主动提供建议，让效率提升 10 倍。</p>
+          </div>
+          <div class="feature-card reveal">
+            <div class="feature-icon">&#128260;</div>
+            <h3>无缝协作</h3>
+            <p>实时同步、版本追踪、冲突自动合并，团队协作从未如此简单自然。</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Stats -->
+    <section id="stats">
+      <div class="stats reveal">
+        <div class="stats-grid">
+          <div class="stat-item">
+            <div class="stat-number">50M+</div>
+            <div class="stat-label">全球用户</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-number">99.9%</div>
+            <div class="stat-label">服务可用性</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-number">42</div>
+            <div class="stat-label">数据中心</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-number">&lt;8ms</div>
+            <div class="stat-label">平均延迟</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Showcase -->
+    <section id="showcase">
+      <div class="showcase">
+        <div class="reveal">
+          <div class="section-label">产品展示</div>
+          <h2 class="section-title">用想象力构建一切</h2>
+          <p class="section-desc">从概念到成品，无需妥协。强大的工具链让创意自由流淌。</p>
+        </div>
+        <div class="showcase-grid">
+          <div class="showcase-card featured reveal">
+            <div class="showcase-visual">
+              <div class="orb"></div>
+              <div class="orb"></div>
+            </div>
+            <div class="showcase-info">
+              <h3>可视化编辑器</h3>
+              <p>所见即所得的创作体验，支持实时预览与多人协作。内置 200+ 精美模板，灵感触手可及。</p>
+              <div class="showcase-tags">
+                <span class="tag">实时协作</span>
+                <span class="tag">模板库</span>
+                <span class="tag">响应式</span>
+              </div>
+            </div>
+          </div>
+          <div class="showcase-card reveal">
+            <div class="showcase-visual">
+              <div class="orb"></div>
+            </div>
+            <div class="showcase-info">
+              <h3>数据仪表盘</h3>
+              <p>智能数据可视化，一目了然。</p>
+              <div class="showcase-tags">
+                <span class="tag">图表</span>
+                <span class="tag">实时</span>
+              </div>
+            </div>
+          </div>
+          <div class="showcase-card reveal">
+            <div class="showcase-visual">
+              <div class="orb" style="background: linear-gradient(135deg, var(--gradient-3), var(--gradient-4))"></div>
+            </div>
+            <div class="showcase-info">
+              <h3>工作流自动化</h3>
+              <p>拖拽即可构建自动化流程。</p>
+              <div class="showcase-tags">
+                <span class="tag">无代码</span>
+                <span class="tag">集成</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- CTA -->
+    <div id="cta" class="cta-section reveal">
+      <div class="section-label">准备好了吗</div>
+      <h2 class="section-title">开启你的 <span class="gradient-text">极光之旅</span></h2>
+      <p>加入数百万创作者的行列，用 Aurora 释放你的全部创造力。</p>
+      <div class="hero-buttons" style="justify-content: center;">
+        <a href="#" class="btn btn-primary">免费开始</a>
+        <a href="#" class="btn btn-ghost">预约演示</a>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <footer>
+      <p>&copy; 2026 Aurora. 以热爱构建 &mdash; <a href="#">GitHub</a></p>
+    </footer>
+  </div>
+
+  <script>
+    // Scroll reveal
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('visible');
+        }
+      });
+    }, { threshold: 0.1, rootMargin: '0px 0px -40px 0px' });
+
+    document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+
+    // Smooth scroll for nav links
+    document.querySelectorAll('a[href^="#"]').forEach(link => {
+      link.addEventListener('click', e => {
+        e.preventDefault();
+        const target = document.querySelector(link.getAttribute('href'));
+        if (target) target.scrollIntoView({ behavior: 'smooth' });
+      });
+    });
+
+    // Number counter animation
+    const statObserver = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          const el = entry.target;
+          const text = el.textContent;
+          const match = text.match(/[\d.]+/);
+          if (match) {
+            const target = parseFloat(match[0]);
+            const duration = 2000;
+            const start = performance.now();
+            const suffix = text.replace(match[0], '');
+            const prefix = text.indexOf(match[0]) > 0 ? text.substring(0, text.indexOf(match[0])) : '';
+            const isFloat = text.includes('.');
+
+            function animate(now) {
+              const progress = Math.min((now - start) / duration, 1);
+              const eased = 1 - Math.pow(1 - progress, 3);
+              const current = isFloat
+                ? (target * eased).toFixed(1)
+                : Math.floor(target * eased);
+              el.textContent = prefix + current + suffix;
+              if (progress < 1) requestAnimationFrame(animate);
+            }
+            requestAnimationFrame(animate);
+          }
+          statObserver.unobserve(el);
+        }
+      });
+    }, { threshold: 0.5 });
+
+    document.querySelectorAll('.stat-number').forEach(el => statObserver.observe(el));
+  </script>
+
+</body>
+</html>

@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+
+# Virtual environment
+.venv/
+venv/
+
+# IDE
+.DS_Store
+.claude/
+.vscode/
+.idea/
+
+# Database (optional: comment out if you want to commit demo data)
+# instance/monitor.db
+
+# Archives
+*.tar.gz
