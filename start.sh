@@ -21,4 +21,4 @@ source .venv/bin/activate
 pip install -q --no-index --find-links ./deps -r requirements.txt 2>/dev/null || pip install -q -r requirements.txt
 
 echo "启动服务..."
-python app.py
+python run.py

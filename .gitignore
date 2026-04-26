@@ -16,8 +16,8 @@ venv/
 .vscode/
 .idea/
 
-# Database (optional: comment out if you want to commit demo data)
-# instance/monitor.db
+# Logs
+*.log
 
 # Archives
 *.tar.gz

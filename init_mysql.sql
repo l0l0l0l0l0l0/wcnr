@@ -1,124 +1,217 @@
 -- ============================================================
 -- 重点人管控系统 - MySQL 初始化脚本
--- 数据库: smart_platform
+-- 数据库: wcnr
+-- 根据 Navicat 截图重构
 -- ============================================================
 
-CREATE DATABASE IF NOT EXISTS smart_platform DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE DATABASE IF NOT EXISTS wcnr DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
-USE smart_platform;
-
--- ==================== 预警记录表 ====================
-DROP TABLE IF EXISTS capture_records;
-CREATE TABLE capture_records (
-    id              INT AUTO_INCREMENT PRIMARY KEY,
-    capture_id      VARCHAR(50) NOT NULL COMMENT '预警编号',
-    person_id_card  VARCHAR(18) DEFAULT NULL COMMENT '身份证号',
-    camera_name     VARCHAR(100) DEFAULT NULL COMMENT '卡口/相机名称',
-    plate_no        VARCHAR(20) DEFAULT NULL COMMENT '车牌号(车辆预警)',
-    capture_time    DATETIME NOT NULL COMMENT '抓拍时间',
-    is_processed    TINYINT DEFAULT 0 COMMENT '状态: 0待签收 1待反馈 2已反馈 3已签收',
-    similarity      FLOAT DEFAULT NULL COMMENT '相似度(0~1小数或百分比)',
-    face_pic_url    VARCHAR(500) DEFAULT NULL COMMENT '抓拍人脸图URL',
-    bkg_url         VARCHAR(500) DEFAULT NULL COMMENT '抓拍场景图URL',
-    person_face_url VARCHAR(500) DEFAULT NULL COMMENT '布控底图URL',
-    created_at      DATETIME DEFAULT CURRENT_TIMESTAMP,
-    INDEX idx_capture_time (capture_time),
-    INDEX idx_person_id_card (person_id_card),
-    INDEX idx_is_processed (is_processed)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='预警抓拍记录表';
-
+USE wcnr;
 
 -- ==================== 布控人员表 ====================
 DROP TABLE IF EXISTS young_peoples;
 CREATE TABLE young_peoples (
-    id                      INT AUTO_INCREMENT PRIMARY KEY,
-    id_card_number          VARCHAR(18) NOT NULL UNIQUE COMMENT '身份证号(唯一)',
-    name                    VARCHAR(50) DEFAULT NULL COMMENT '姓名',
-    gender                  VARCHAR(10) DEFAULT NULL COMMENT '性别',
-    age                     INT DEFAULT NULL COMMENT '年龄',
-    ethnicity               VARCHAR(20) DEFAULT NULL COMMENT '民族',
-    control_library         VARCHAR(50) DEFAULT '重点人员库' COMMENT '布控库名称',
-    control_status          VARCHAR(20) DEFAULT '布控中' COMMENT '布控状态: 布控中/待审批/已撤控',
-    sub_bureau              VARCHAR(50) DEFAULT NULL COMMENT '所属分局',
-    police_station          VARCHAR(50) DEFAULT NULL COMMENT '所属派出所',
-    community               VARCHAR(50) DEFAULT NULL COMMENT '所属社区',
-    alias                   VARCHAR(50) DEFAULT NULL COMMENT '曾用名',
-    phone                   VARCHAR(20) DEFAULT NULL COMMENT '手机号',
-    household_address       VARCHAR(200) DEFAULT NULL COMMENT '户籍地址',
-    current_address         VARCHAR(200) DEFAULT NULL COMMENT '现住址',
-    person_face_url         VARCHAR(500) DEFAULT NULL COMMENT '人员照片URL',
-    last_capture_query_time DATETIME DEFAULT NULL COMMENT '最近抓拍查询时间',
-    created_at              DATETIME DEFAULT CURRENT_TIMESTAMP,
-    INDEX idx_control_status (control_status),
-    INDEX idx_sub_bureau (sub_bureau),
-    INDEX idx_name (name)
+    id                      INT AUTO_INCREMENT PRIMARY KEY COMMENT 'ID',
+    name                    VARCHAR(255) DEFAULT NULL COMMENT '姓名',
+    gender                  VARCHAR(255) DEFAULT NULL COMMENT '性别',
+    contact                 VARCHAR(255) DEFAULT NULL COMMENT '联系方式',
+    id_card_number          VARCHAR(255) DEFAULT NULL COMMENT '身份证号码',
+    address                 VARCHAR(255) DEFAULT NULL COMMENT '居住地详址',
+    person_category         VARCHAR(255) DEFAULT NULL COMMENT '人员类别',
+    criminal_record         VARCHAR(255) DEFAULT NULL COMMENT '涉案前科',
+    update_time             VARCHAR(255) DEFAULT NULL COMMENT '更新时间',
+    person_face_url         LONGTEXT DEFAULT NULL COMMENT '原始人脸URL',
+    last_capture_query_time DATETIME DEFAULT NULL COMMENT '最后一次抓拍查询时间',
+    age                     VARCHAR(255) DEFAULT NULL COMMENT '年龄',
+    police_station          VARCHAR(255) DEFAULT NULL COMMENT '派出所',
+    police_district         VARCHAR(255) DEFAULT NULL COMMENT '警务区',
+    control_category        VARCHAR(255) DEFAULT NULL COMMENT '管控类别',
+    control_time            VARCHAR(255) DEFAULT NULL COMMENT '纳管时间',
+    INDEX idx_id_card_number (id_card_number),
+    INDEX idx_name (name),
+    INDEX idx_police_station (police_station),
+    INDEX idx_control_category (control_category)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='布控人员表';
+
+
+-- ==================== 预警抓拍记录表 ====================
+DROP TABLE IF EXISTS capture_records;
+CREATE TABLE capture_records (
+    id                  BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT 'ID',
+    person_id_card      VARCHAR(18) DEFAULT NULL COMMENT '身份证号码',
+    person_face_url     TEXT DEFAULT NULL COMMENT '原始人脸URL',
+    capture_id          VARCHAR(255) DEFAULT NULL COMMENT '抓拍唯一ID',
+    capture_time        DATETIME DEFAULT NULL COMMENT '抓拍时间',
+    camera_name         VARCHAR(255) DEFAULT NULL COMMENT '摄像头名称',
+    camera_index_code   VARCHAR(100) DEFAULT NULL COMMENT '摄像头编号',
+    face_pic_url        TEXT DEFAULT NULL COMMENT '抓拍人脸图',
+    bkg_url             TEXT DEFAULT NULL COMMENT '全景图',
+    similarity          FLOAT DEFAULT NULL COMMENT '相似度',
+    gender              VARCHAR(10) DEFAULT NULL COMMENT '性别',
+    age_group           VARCHAR(20) DEFAULT NULL COMMENT '年龄组',
+    glass               VARCHAR(10) DEFAULT NULL COMMENT '是否戴眼镜',
+    plate_no            VARCHAR(20) DEFAULT NULL COMMENT '车牌号',
+    created_at          TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    is_processed        TINYINT DEFAULT 0 COMMENT '是否已处理: 0否 1是',
+    INDEX idx_person_id_card (person_id_card),
+    INDEX idx_capture_time (capture_time),
+    INDEX idx_capture_id (capture_id),
+    INDEX idx_camera_index_code (camera_index_code),
+    INDEX idx_is_processed (is_processed)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='预警抓拍记录表';
+
+
+-- ==================== 任务状态表 ====================
+DROP TABLE IF EXISTS task_status;
+CREATE TABLE task_status (
+    task_name       VARCHAR(255) NOT NULL PRIMARY KEY COMMENT '任务名称',
+    last_run_time   DATETIME NOT NULL COMMENT '最后运行时间',
+    last_run_hash   VARCHAR(64) DEFAULT NULL COMMENT '最后运行哈希',
+    status          VARCHAR(50) DEFAULT NULL COMMENT '状态'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='任务状态表';
+
+
+-- ==================== 临时导入表 ====================
+DROP TABLE IF EXISTS tmp;
+CREATE TABLE tmp (
+    序号              VARCHAR(255) DEFAULT NULL COMMENT '序号',
+    姓名              VARCHAR(255) DEFAULT NULL COMMENT '姓名',
+    公民身份证号码    VARCHAR(255) DEFAULT NULL COMMENT '公民身份证号码',
+    人员类别          VARCHAR(255) DEFAULT NULL COMMENT '人员类别',
+    f5                VARCHAR(255) DEFAULT NULL,
+    f6                VARCHAR(255) DEFAULT NULL,
+    f7                VARCHAR(255) DEFAULT NULL,
+    f8                VARCHAR(255) DEFAULT NULL,
+    f9                VARCHAR(255) DEFAULT NULL,
+    f10               VARCHAR(255) DEFAULT NULL,
+    f11               VARCHAR(255) DEFAULT NULL,
+    f12               VARCHAR(255) DEFAULT NULL,
+    f13               VARCHAR(255) DEFAULT NULL,
+    f14               VARCHAR(255) DEFAULT NULL,
+    f15               VARCHAR(255) DEFAULT NULL,
+    f16               VARCHAR(255) DEFAULT NULL,
+    f17               VARCHAR(255) DEFAULT NULL,
+    f18               VARCHAR(255) DEFAULT NULL,
+    f19               VARCHAR(255) DEFAULT NULL,
+    f20               VARCHAR(255) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='临时导入表';
+
+
+-- ==================== 摄像头类型表 ====================
+DROP TABLE IF EXISTS cameras_type;
+CREATE TABLE cameras_type (
+    id          INT AUTO_INCREMENT PRIMARY KEY COMMENT 'ID',
+    type_name   VARCHAR(100) NOT NULL COMMENT '类型名称',
+    type_code   VARCHAR(50) DEFAULT NULL COMMENT '类型编码',
+    description VARCHAR(255) DEFAULT NULL COMMENT '描述',
+    created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='摄像头类型表';
+
+
+-- ==================== 摄像头设备表 ====================
+DROP TABLE IF EXISTS cameras;
+CREATE TABLE cameras (
+    id                  INT AUTO_INCREMENT PRIMARY KEY COMMENT 'ID',
+    camera_name         VARCHAR(255) NOT NULL COMMENT '摄像头名称',
+    camera_index_code   VARCHAR(100) NOT NULL UNIQUE COMMENT '摄像头编号(唯一)',
+    camera_type_id      INT DEFAULT NULL COMMENT '摄像头类型ID',
+    location            VARCHAR(255) DEFAULT NULL COMMENT '安装位置',
+    longitude           DECIMAL(10,7) DEFAULT NULL COMMENT '经度',
+    latitude            DECIMAL(10,7) DEFAULT NULL COMMENT '纬度',
+    ip_address          VARCHAR(50) DEFAULT NULL COMMENT 'IP地址',
+    status              TINYINT DEFAULT 1 COMMENT '状态: 0离线 1在线',
+    install_time        DATETIME DEFAULT NULL COMMENT '安装时间',
+    created_at          TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    updated_at          TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    INDEX idx_camera_index_code (camera_index_code),
+    INDEX idx_camera_type_id (camera_type_id),
+    INDEX idx_status (status),
+    FOREIGN KEY (camera_type_id) REFERENCES cameras_type(id) ON DELETE SET NULL ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='摄像头设备表';
 
 
 -- ==================== 插入演示数据 ====================
 
+-- 摄像头类型演示数据
+INSERT INTO cameras_type (type_name, type_code, description) VALUES
+('人脸卡口', 'FACE_CAPTURE', '人脸抓拍专用摄像头'),
+('车辆卡口', 'VEHICLE_CAPTURE', '车辆抓拍专用摄像头'),
+('治安监控', 'SECURITY', '普通治安监控摄像头'),
+('高点监控', 'HIGH_POINT', '高空瞭望摄像头');
+
+-- 摄像头设备演示数据
+INSERT INTO cameras (camera_name, camera_index_code, camera_type_id, location, longitude, latitude, ip_address, status, install_time) VALUES
+('城中广场人脸卡口01', 'CAM_001', 1, '城中区广场东路与解放北路交叉口', 109.4280, 24.3260, '192.168.1.101', 1, '2025-06-01 08:00:00'),
+('鱼峰公园人脸卡口02', 'CAM_002', 1, '鱼峰区鱼峰路公园正门口', 109.4350, 24.3120, '192.168.1.102', 1, '2025-06-01 08:00:00'),
+('柳南车辆卡口01', 'CAM_003', 2, '柳南区柳邕路与航岭路交叉口', 109.4050, 24.3050, '192.168.1.103', 1, '2025-07-15 09:00:00'),
+('柳北治安监控01', 'CAM_004', 3, '柳北区跃进路与北雀路交叉口', 109.4150, 24.3350, '192.168.1.104', 1, '2025-08-01 10:00:00'),
+('柳江高点监控01', 'CAM_005', 4, '柳江区柳江大道政府大楼顶', 109.3850, 24.2650, '192.168.1.105', 0, '2025-09-01 08:30:00'),
+('城中广场人脸卡口06', 'CAM_006', 1, '城中区龙城路与五一路交叉口', 109.4250, 24.3220, '192.168.1.106', 1, '2025-06-15 08:00:00'),
+('鱼峰治安监控02', 'CAM_007', 3, '鱼峰区荣军路与屏山大道交叉口', 109.4400, 24.3080, '192.168.1.107', 1, '2025-08-15 09:30:00'),
+('柳南人脸卡口03', 'CAM_008', 1, '柳南区飞鹅路与南站路交叉口', 109.4000, 24.3100, '192.168.1.108', 1, '2025-07-01 08:00:00');
+
 -- 布控人员演示数据 (60条)
-INSERT INTO young_peoples (id_card_number, name, gender, age, ethnicity, control_library, control_status, sub_bureau, police_station, community, alias, phone, household_address, current_address, last_capture_query_time) VALUES
-('450202199001011234', '张伟', '男', 36, '汉族', '重点人员库', '布控中', '城中分局', '城中派出所', '城中社区', NULL, '13800001001', '柳州市城中区解放北路1号', '柳州市城中区解放北路1号', '2026-04-25 08:30:00'),
-('450202199002021234', '王芳', '女', 34, '汉族', '重点人员库', '布控中', '鱼峰分局', '鱼峰派出所', '鱼峰社区', NULL, '13800001002', '柳州市鱼峰区鱼峰路2号', '柳州市鱼峰区鱼峰路2号', '2026-04-25 09:15:00'),
-('450202199003031234', '李娜', '女', 36, '壮族', '涉毒人员库', '布控中', '柳南分局', '柳南派出所', '柳南社区', '李娜娜', '13800001003', '柳州市柳南区柳邕路3号', '柳州市柳南区柳邕路3号', NULL),
-('450202199004041234', '刘洋', '男', 36, '汉族', '重点人员库', '布控中', '柳北分局', '柳北派出所', '柳北社区', NULL, '13800001004', '柳州市柳北区跃进路4号', '柳州市柳北区跃进路4号', '2026-04-25 07:00:00'),
-('450202199005051234', '陈静', '女', 35, '汉族', '重点人员库', '布控中', '柳江分局', '柳江派出所', '柳江社区', NULL, '13800001005', '柳州市柳江区柳江路5号', '柳州市柳江区柳江路5号', NULL),
-('450202199006061234', '杨明', '男', 35, '壮族', '涉毒人员库', '布控中', '城中分局', '城中派出所', '城中社区', NULL, '13800001006', '柳州市城中区中山路6号', '柳州市城中区中山路6号', '2026-04-25 10:00:00'),
-('450202199007071234', '赵强', '男', 35, '汉族', '重点人员库', '布控中', '鱼峰分局', '鱼峰派出所', '鱼峰社区', '赵小强', '13800001007', '柳州市鱼峰区驾鹤路7号', '柳州市鱼峰区驾鹤路7号', NULL),
-('450202199008081234', '黄磊', '男', 35, '汉族', '重点人员库', '布控中', '柳南分局', '柳南派出所', '柳南社区', NULL, '13800001008', '柳州市柳南区壶西大道8号', '柳州市柳南区壶西大道8号', '2026-04-25 11:30:00'),
-('450202199009091234', '周杰', '男', 35, '苗族', '前科人员库', '布控中', '柳北分局', '柳北派出所', '柳北社区', NULL, '13800001009', '柳州市柳北区白露大道9号', '柳州市柳北区白露大道9号', NULL),
-('450202199010101234', '吴刚', '男', 35, '汉族', '重点人员库', '布控中', '柳江分局', '柳江派出所', '柳江社区', NULL, '13800001010', '柳州市柳江区瑞龙路10号', '柳州市柳江区瑞龙路10号', '2026-04-25 06:45:00'),
-('450202199101111234', '徐丽', '女', 35, '汉族', '涉毒人员库', '布控中', '城中分局', '城中派出所', '城中社区', NULL, '13800001011', '柳州市城中区广场路11号', '柳州市城中区广场路11号', NULL),
-('450202199102121234', '孙涛', '男', 34, '壮族', '重点人员库', '布控中', '鱼峰分局', '鱼峰派出所', '鱼峰社区', NULL, '13800001012', '柳州市鱼峰区荣军路12号', '柳州市鱼峰区荣军路12号', '2026-04-25 14:20:00'),
-('450202199103131234', '马超', '男', 33, '汉族', '重点人员库', '待审批', '柳南分局', '柳南派出所', '柳南社区', NULL, '13800001013', '柳州市柳南区航岭路13号', '柳州市柳南区航岭路13号', NULL),
-('450202199104141234', '朱红', '女', 32, '汉族', '前科人员库', '布控中', '柳北分局', '柳北派出所', '柳北社区', NULL, '13800001014', '柳州市柳北区北雀路14号', '柳州市柳北区北雀路14号', NULL),
-('450202199105151234', '胡平', '男', 31, '苗族', '重点人员库', '布控中', '柳江分局', '柳江派出所', '柳江社区', NULL, '13800001015', '柳州市柳江区成团路15号', '柳州市柳江区成团路15号', '2026-04-25 13:00:00'),
-('450202199106161234', '郭亮', '男', 30, '汉族', '涉毒人员库', '布控中', '城中分局', '城中派出所', '城中社区', NULL, '13800001016', '柳州市城中区八一路16号', '柳州市城中区八一路16号', NULL),
-('450202199107171234', '林霞', '女', 29, '汉族', '重点人员库', '布控中', '鱼峰分局', '鱼峰派出所', '鱼峰社区', NULL, '13800001017', '柳州市鱼峰区鸡喇路17号', '柳州市鱼峰区鸡喇路17号', '2026-04-25 15:10:00'),
-('450202199108181234', '何勇', '男', 28, '壮族', '重点人员库', '已撤控', '柳南分局', '柳南派出所', '柳南社区', NULL, '13800001018', '柳州市柳南区潭中西路18号', '柳州市柳南区潭中西路18号', NULL),
-('450202199109191234', '高明', '男', 27, '汉族', '前科人员库', '布控中', '柳北分局', '柳北派出所', '柳北社区', NULL, '13800001019', '柳州市柳北区雅儒路19号', '柳州市柳北区雅儒路19号', '2026-04-25 09:50:00'),
-('450202199110201234', '罗辉', '男', 26, '汉族', '重点人员库', '布控中', '柳江分局', '柳江派出所', '柳江社区', NULL, '13800001020', '柳州市柳江区拉堡镇20号', '柳州市柳江区拉堡镇20号', NULL),
-('450202199201011235', '韩雪', '女', 34, '汉族', '涉毒人员库', '布控中', '城中分局', '公园派出所', '公园社区', NULL, '13800002001', '柳州市城中区公园路21号', '柳州市城中区公园路21号', '2026-04-24 18:30:00'),
-('450202199202021235', '冯刚', '男', 34, '汉族', '重点人员库', '布控中', '鱼峰分局', '麒麟派出所', '麒麟社区', NULL, '13800002002', '柳州市鱼峰区麒麟路22号', '柳州市鱼峰区麒麟路22号', NULL),
-('450202199203031235', '曹敏', '女', 33, '壮族', '重点人员库', '待审批', '柳南分局', '南站派出所', '南站社区', NULL, '13800002003', '柳州市柳南区南站路23号', '柳州市柳南区南站路23号', NULL),
-('450202199204041235', '彭勇', '男', 32, '汉族', '前科人员库', '布控中', '柳北分局', '雀儿山派出所', '雀儿山社区', NULL, '13800002004', '柳州市柳北区雀儿山路24号', '柳州市柳北区雀儿山路24号', '2026-04-25 12:00:00'),
-('450202199205051235', '邓丽', '女', 31, '汉族', '重点人员库', '布控中', '柳江分局', '进德派出所', '进德社区', NULL, '13800002005', '柳州市柳江区进德路25号', '柳州市柳江区进德路25号', NULL),
-('450202199206061235', '许峰', '男', 30, '苗族', '涉毒人员库', '布控中', '城中分局', '中南派出所', '中南社区', NULL, '13800002006', '柳州市城中区中南路26号', '柳州市城中区中南路26号', '2026-04-25 16:00:00'),
-('450202199207071235', '傅磊', '男', 29, '汉族', '重点人员库', '布控中', '鱼峰分局', '白莲派出所', '白莲社区', NULL, '13800002007', '柳州市鱼峰区白莲路27号', '柳州市鱼峰区白莲路27号', NULL),
-('450202199208081235', '沈静', '女', 28, '汉族', '重点人员库', '已撤控', '柳南分局', '银山派出所', '银山社区', NULL, '13800002008', '柳州市柳南区银山路28号', '柳州市柳南区银山路28号', NULL),
-('450202199209091235', '曾杰', '男', 27, '壮族', '前科人员库', '布控中', '柳北分局', '长塘派出所', '长塘社区', NULL, '13800002009', '柳州市柳北区长塘路29号', '柳州市柳北区长塘路29号', '2026-04-25 08:00:00'),
-('450202199210101235', '吕刚', '男', 26, '汉族', '重点人员库', '布控中', '柳江分局', '百朋派出所', '百朋社区', NULL, '13800002010', '柳州市柳江区百朋路30号', '柳州市柳江区百朋路30号', NULL),
-('450202199301111235', '苏瑶', '女', 33, '汉族', '涉毒人员库', '布控中', '城中分局', '潭中派出所', '潭中社区', NULL, '13800003001', '柳州市城中区潭中大道31号', '柳州市城中区潭中大道31号', '2026-04-25 07:30:00'),
-('450202199302121235', '卢强', '男', 33, '汉族', '重点人员库', '布控中', '鱼峰分局', '五里亭派出所', '五里亭社区', NULL, '13800003002', '柳州市鱼峰区五里亭路32号', '柳州市鱼峰区五里亭路32号', NULL),
-('450202199303131235', '蒋敏', '女', 33, '壮族', '重点人员库', '布控中', '柳南分局', '鹅山派出所', '鹅山社区', NULL, '13800003003', '柳州市柳南区鹅山路33号', '柳州市柳南区鹅山路33号', '2026-04-25 10:30:00'),
-('450202199304141235', '蔡勇', '男', 32, '汉族', '前科人员库', '布控中', '柳北分局', '沙塘派出所', '沙塘社区', NULL, '13800003004', '柳州市柳北区沙塘路34号', '柳州市柳北区沙塘路34号', NULL),
-('450202199305151235', '贾丽', '女', 31, '苗族', '重点人员库', '布控中', '柳江分局', '三都派出所', '三都社区', NULL, '13800003005', '柳州市柳江区三都路35号', '柳州市柳江区三都路35号', NULL),
-('450202199306161235', '丁峰', '男', 30, '汉族', '涉毒人员库', '布控中', '城中分局', '河东派出所', '河东社区', NULL, '13800003006', '柳州市城中区河东路36号', '柳州市城中区河东路36号', '2026-04-24 20:00:00'),
-('450202199307171235', '魏磊', '男', 29, '汉族', '重点人员库', '待审批', '鱼峰分局', '箭盘山派出所', '箭盘山社区', NULL, '13800003007', '柳州市鱼峰区箭盘山路37号', '柳州市鱼峰区箭盘山路37号', NULL),
-('450202199308181235', '薛静', '女', 28, '汉族', '重点人员库', '布控中', '柳南分局', '河西派出所', '河西社区', NULL, '13800003008', '柳州市柳南区河西路38号', '柳州市柳南区河西路38号', '2026-04-25 11:00:00'),
-('450202199309191235', '叶杰', '男', 27, '壮族', '前科人员库', '布控中', '柳北分局', '钢城派出所', '钢城社区', NULL, '13800003009', '柳州市柳北区钢城路39号', '柳州市柳北区钢城路39号', NULL),
-('450202199310201235', '阎刚', '男', 26, '汉族', '重点人员库', '布控中', '柳江分局', '穿山派出所', '穿山社区', NULL, '13800003010', '柳州市柳江区穿山路40号', '柳州市柳江区穿山路40号', NULL),
-('450202199401011236', '余瑶', '女', 32, '汉族', '涉毒人员库', '已撤控', '城中分局', '中南派出所', '中南社区', NULL, '13800004001', '柳州市城中区龙城路41号', '柳州市城中区龙城路41号', NULL),
-('450202199402021236', '潘强', '男', 32, '汉族', '重点人员库', '布控中', '鱼峰分局', '白莲派出所', '白莲社区', NULL, '13800004002', '柳州市鱼峰区柳石路42号', '柳州市鱼峰区柳石路42号', '2026-04-25 14:00:00'),
-('450202199403031236', '杜敏', '女', 32, '壮族', '重点人员库', '布控中', '柳南分局', '柳石派出所', '柳石社区', NULL, '13800004003', '柳州市柳南区柳石路43号', '柳州市柳南区柳石路43号', NULL),
-('450202199404041236', '戴勇', '男', 32, '汉族', '前科人员库', '布控中', '柳北分局', '胜利派出所', '胜利社区', NULL, '13800004004', '柳州市柳北区胜利路44号', '柳州市柳北区胜利路44号', '2026-04-25 08:45:00'),
-('450202199405051236', '夏丽', '女', 31, '苗族', '重点人员库', '布控中', '柳江分局', '里高派出所', '里高社区', NULL, '13800004005', '柳州市柳江区里高路45号', '柳州市柳江区里高路45号', NULL),
-('450202199406061236', '姜峰', '男', 30, '汉族', '涉毒人员库', '布控中', '城中分局', '潭中派出所', '潭中社区', NULL, '13800004006', '柳州市城中区三中路46号', '柳州市城中区三中路46号', '2026-04-24 22:00:00'),
-('450202199407171236', '钱磊', '男', 29, '汉族', '重点人员库', '布控中', '鱼峰分局', '五里亭派出所', '五里亭社区', NULL, '13800004007', '柳州市鱼峰区荣军路47号', '柳州市鱼峰区荣军路47号', NULL),
-('450202199408181236', '秦静', '女', 28, '汉族', '重点人员库', '布控中', '柳南分局', '鹅山派出所', '鹅山社区', NULL, '13800004008', '柳州市柳南区红光路48号', '柳州市柳南区红光路48号', '2026-04-25 15:30:00'),
-('450202199409191236', '尤杰', '男', 27, '壮族', '前科人员库', '布控中', '柳北分局', '雀儿山派出所', '雀儿山社区', NULL, '13800004009', '柳州市柳北区北雀路49号', '柳州市柳北区北雀路49号', NULL),
-('450202199410201236', '许刚', '男', 26, '汉族', '重点人员库', '布控中', '柳江分局', '百朋派出所', '百朋社区', NULL, '13800004010', '柳州市柳江区百朋路50号', '柳州市柳江区百朋路50号', NULL),
-('450202199501011237', '何瑶', '女', 31, '汉族', '涉毒人员库', '布控中', '城中分局', '公园派出所', '公园社区', NULL, '13800005001', '柳州市城中区弯塘路51号', '柳州市城中区弯塘路51号', '2026-04-25 09:00:00'),
-('450202199502021237', '吕强', '男', 31, '汉族', '重点人员库', '布控中', '鱼峰分局', '麒麟派出所', '麒麟社区', NULL, '13800005002', '柳州市鱼峰区文笔路52号', '柳州市鱼峰区文笔路52号', NULL),
-('450202199503031237', '施敏', '女', 31, '壮族', '重点人员库', '布控中', '柳南分局', '南站派出所', '南站社区', NULL, '13800005003', '柳州市柳南区飞鹅路53号', '柳州市柳南区飞鹅路53号', '2026-04-25 10:15:00'),
-('450202199504141237', '张勇', '男', 31, '汉族', '前科人员库', '已撤控', '柳北分局', '沙塘派出所', '沙塘社区', NULL, '13800005004', '柳州市柳北区沙塘路54号', '柳州市柳北区沙塘路54号', NULL),
-('450202199505151237', '孔丽', '女', 30, '苗族', '重点人员库', '布控中', '柳江分局', '进德派出所', '进德社区', NULL, '13800005005', '柳州市柳江区进德路55号', '柳州市柳江区进德路55号', NULL),
-('450202199506161237', '曹峰', '男', 29, '汉族', '涉毒人员库', '待审批', '城中分局', '河东派出所', '河东社区', NULL, '13800005006', '柳州市城中区河东路56号', '柳州市城中区河东路56号', NULL),
-('450202199507171237', '严磊', '男', 29, '汉族', '重点人员库', '布控中', '鱼峰分局', '箭盘山派出所', '箭盘山社区', NULL, '13800005007', '柳州市鱼峰区东环路57号', '柳州市鱼峰区东环路57号', '2026-04-25 16:30:00'),
-('450202199508181237', '华静', '女', 30, '汉族', '重点人员库', '布控中', '柳南分局', '河西派出所', '河西社区', NULL, '13800005008', '柳州市柳南区壶西大道58号', '柳州市柳南区壶西大道58号', NULL),
-('450202199509191237', '金杰', '男', 29, '壮族', '前科人员库', '布控中', '柳北分局', '长塘派出所', '长塘社区', NULL, '13800005009', '柳州市柳北区长虹路59号', '柳州市柳北区长虹路59号', '2026-04-25 13:45:00'),
-('450202199510201237', '魏刚', '男', 30, '汉族', '重点人员库', '布控中', '柳江分局', '穿山派出所', '穿山社区', NULL, '13800005010', '柳州市柳江区穿山路60号', '柳州市柳江区穿山路60号', NULL);
+INSERT INTO young_peoples (id_card_number, name, gender, contact, age, address, person_category, criminal_record, police_station, police_district, control_category, control_time, last_capture_query_time) VALUES
+('450202199001011234', '张伟', '男', '13800001001', '36', '柳州市城中区解放北路1号', '重点人员', NULL, '城中派出所', '城中警务区', '重点管控', '2025-01-15', '2026-04-25 08:30:00'),
+('450202199002021234', '王芳', '女', '13800001002', '34', '柳州市鱼峰区鱼峰路2号', '重点人员', NULL, '鱼峰派出所', '鱼峰警务区', '重点管控', '2025-02-20', '2026-04-25 09:15:00'),
+('450202199003031234', '李娜', '女', '13800001003', '36', '柳州市柳南区柳邕路3号', '涉毒人员', '吸毒前科', '柳南派出所', '柳南警务区', '重点管控', '2025-03-10', NULL),
+('450202199004041234', '刘洋', '男', '13800001004', '36', '柳州市柳北区跃进路4号', '重点人员', NULL, '柳北派出所', '柳北警务区', '一般管控', '2025-01-20', '2026-04-25 07:00:00'),
+('450202199005051234', '陈静', '女', '13800001005', '35', '柳州市柳江区柳江路5号', '重点人员', NULL, '柳江派出所', '柳江警务区', '重点管控', '2025-04-05', NULL),
+('450202199006061234', '杨明', '男', '13800001006', '35', '柳州市城中区中山路6号', '涉毒人员', '贩毒前科', '城中派出所', '城中警务区', '重点管控', '2025-02-28', '2026-04-25 10:00:00'),
+('450202199007071234', '赵强', '男', '13800001007', '35', '柳州市鱼峰区驾鹤路7号', '重点人员', NULL, '鱼峰派出所', '鱼峰警务区', '一般管控', '2025-03-15', NULL),
+('450202199008081234', '黄磊', '男', '13800001008', '35', '柳州市柳南区壶西大道8号', '重点人员', NULL, '柳南派出所', '柳南警务区', '重点管控', '2025-01-10', '2026-04-25 11:30:00'),
+('450202199009091234', '周杰', '男', '13800001009', '35', '柳州市柳北区白露大道9号', '前科人员', '盗窃前科', '柳北派出所', '柳北警务区', '一般管控', '2025-05-01', NULL),
+('450202199010101234', '吴刚', '男', '13800001010', '35', '柳州市柳江区瑞龙路10号', '重点人员', NULL, '柳江派出所', '柳江警务区', '重点管控', '2025-02-15', '2026-04-25 06:45:00'),
+('450202199101111234', '徐丽', '女', '13800001011', '35', '柳州市城中区广场路11号', '涉毒人员', '吸毒前科', '城中派出所', '城中警务区', '重点管控', '2025-04-20', NULL),
+('450202199102121234', '孙涛', '男', '13800001012', '34', '柳州市鱼峰区荣军路12号', '重点人员', NULL, '鱼峰派出所', '鱼峰警务区', '一般管控', '2025-03-01', '2026-04-25 14:20:00'),
+('450202199103131234', '马超', '男', '13800001013', '33', '柳州市柳南区航岭路13号', '重点人员', NULL, '柳南派出所', '柳南警务区', '待审批', '2025-06-01', NULL),
+('450202199104141234', '朱红', '女', '13800001014', '32', '柳州市柳北区北雀路14号', '前科人员', '故意伤害前科', '柳北派出所', '柳北警务区', '重点管控', '2025-01-25', NULL),
+('450202199105151234', '胡平', '男', '13800001015', '31', '柳州市柳江区成团路15号', '重点人员', NULL, '柳江派出所', '柳江警务区', '一般管控', '2025-05-10', '2026-04-25 13:00:00'),
+('450202199106161234', '郭亮', '男', '13800001016', '30', '柳州市城中区八一路16号', '涉毒人员', '吸毒前科', '城中派出所', '城中警务区', '重点管控', '2025-02-10', NULL),
+('450202199107171234', '林霞', '女', '13800001017', '29', '柳州市鱼峰区鸡喇路17号', '重点人员', NULL, '鱼峰派出所', '鱼峰警务区', '一般管控', '2025-04-01', '2026-04-25 15:10:00'),
+('450202199108181234', '何勇', '男', '13800001018', '28', '柳州市柳南区潭中西路18号', '重点人员', NULL, '柳南派出所', '柳南警务区', '已撤控', '2025-01-05', NULL),
+('450202199109191234', '高明', '男', '13800001019', '27', '柳州市柳北区雅儒路19号', '前科人员', '抢劫前科', '柳北派出所', '柳北警务区', '重点管控', '2025-03-20', '2026-04-25 09:50:00'),
+('450202199110201234', '罗辉', '男', '13800001020', '26', '柳州市柳江区拉堡镇20号', '重点人员', NULL, '柳江派出所', '柳江警务区', '一般管控', '2025-05-20', NULL),
+('450202199201011235', '韩雪', '女', '13800002001', '34', '柳州市城中区公园路21号', '涉毒人员', '吸毒前科', '公园派出所', '公园警务区', '重点管控', '2025-02-05', '2026-04-24 18:30:00'),
+('450202199202021235', '冯刚', '男', '13800002002', '34', '柳州市鱼峰区麒麟路22号', '重点人员', NULL, '麒麟派出所', '麒麟警务区', '一般管控', '2025-01-15', NULL),
+('450202199203031235', '曹敏', '女', '13800002003', '33', '柳州市柳南区南站路23号', '重点人员', NULL, '南站派出所', '南站警务区', '待审批', '2025-06-10', NULL),
+('450202199204041235', '彭勇', '男', '13800002004', '32', '柳州市柳北区雀儿山路24号', '前科人员', '盗窃前科', '雀儿山派出所', '雀儿山警务区', '重点管控', '2025-03-05', '2026-04-25 12:00:00'),
+('450202199205051235', '邓丽', '女', '13800002005', '31', '柳州市柳江区进德路25号', '重点人员', NULL, '进德派出所', '进德警务区', '一般管控', '2025-04-15', NULL),
+('450202199206061235', '许峰', '男', '13800002006', '30', '柳州市城中区中南路26号', '涉毒人员', '贩毒前科', '中南派出所', '中南警务区', '重点管控', '2025-02-25', '2026-04-25 16:00:00'),
+('450202199207071235', '傅磊', '男', '13800002007', '29', '柳州市鱼峰区白莲路27号', '重点人员', NULL, '白莲派出所', '白莲警务区', '一般管控', '2025-05-05', NULL),
+('450202199208081235', '沈静', '女', '13800002008', '28', '柳州市柳南区银山路28号', '重点人员', NULL, '银山派出所', '银山警务区', '已撤控', '2025-01-30', NULL),
+('450202199209091235', '曾杰', '男', '13800002009', '27', '柳州市柳北区长塘路29号', '前科人员', '故意伤害前科', '长塘派出所', '长塘警务区', '重点管控', '2025-04-10', '2026-04-25 08:00:00'),
+('450202199210101235', '吕刚', '男', '13800002010', '26', '柳州市柳江区百朋路30号', '重点人员', NULL, '百朋派出所', '百朋警务区', '一般管控', '2025-03-25', NULL),
+('450202199301111235', '苏瑶', '女', '13800003001', '33', '柳州市城中区潭中大道31号', '涉毒人员', '吸毒前科', '潭中派出所', '潭中警务区', '重点管控', '2025-02-15', '2026-04-25 07:30:00'),
+('450202199302121235', '卢强', '男', '13800003002', '33', '柳州市鱼峰区五里亭路32号', '重点人员', NULL, '五里亭派出所', '五里亭警务区', '一般管控', '2025-01-20', NULL),
+('450202199303131235', '蒋敏', '女', '13800003003', '33', '柳州市柳南区鹅山路33号', '重点人员', NULL, '鹅山派出所', '鹅山警务区', '重点管控', '2025-05-15', '2026-04-25 10:30:00'),
+('450202199304141235', '蔡勇', '男', '13800003004', '32', '柳州市柳北区沙塘路34号', '前科人员', '抢劫前科', '沙塘派出所', '沙塘警务区', '重点管控', '2025-03-10', NULL),
+('450202199305151235', '贾丽', '女', '13800003005', '31', '柳州市柳江区三都路35号', '重点人员', NULL, '三都派出所', '三都警务区', '一般管控', '2025-04-25', NULL),
+('450202199306161235', '丁峰', '男', '13800003006', '30', '柳州市城中区河东路36号', '涉毒人员', '吸毒前科', '河东派出所', '河东警务区', '重点管控', '2025-02-01', '2026-04-24 20:00:00'),
+('450202199307171235', '魏磊', '男', '13800003007', '29', '柳州市鱼峰区箭盘山路37号', '重点人员', NULL, '箭盘山派出所', '箭盘山警务区', '待审批', '2025-06-05', NULL),
+('450202199308181235', '薛静', '女', '13800003008', '28', '柳州市柳南区河西路38号', '重点人员', NULL, '河西派出所', '河西警务区', '重点管控', '2025-01-10', '2026-04-25 11:00:00'),
+('450202199309191235', '叶杰', '男', '13800003009', '27', '柳州市柳北区钢城路39号', '前科人员', '盗窃前科', '钢城派出所', '钢城警务区', '一般管控', '2025-05-20', NULL),
+('450202199310201235', '阎刚', '男', '13800003010', '26', '柳州市柳江区穿山路40号', '重点人员', NULL, '穿山派出所', '穿山警务区', '重点管控', '2025-03-15', NULL),
+('450202199401011236', '余瑶', '女', '13800004001', '32', '柳州市城中区龙城路41号', '涉毒人员', '吸毒前科', '中南派出所', '中南警务区', '已撤控', '2025-04-05', NULL),
+('450202199402021236', '潘强', '男', '13800004002', '32', '柳州市鱼峰区柳石路42号', '重点人员', NULL, '白莲派出所', '白莲警务区', '一般管控', '2025-02-20', '2026-04-25 14:00:00'),
+('450202199403031236', '杜敏', '女', '13800004003', '32', '柳州市柳南区柳石路43号', '重点人员', NULL, '柳石派出所', '柳石警务区', '重点管控', '2025-01-05', NULL),
+('450202199404041236', '戴勇', '男', '13800004004', '32', '柳州市柳北区胜利路44号', '前科人员', '故意伤害前科', '胜利派出所', '胜利警务区', '重点管控', '2025-03-30', '2026-04-25 08:45:00'),
+('450202199405051236', '夏丽', '女', '13800004005', '31', '柳州市柳江区里高路45号', '重点人员', NULL, '里高派出所', '里高警务区', '一般管控', '2025-05-10', NULL),
+('450202199406061236', '姜峰', '男', '13800004006', '30', '柳州市城中区三中路46号', '涉毒人员', '贩毒前科', '潭中派出所', '潭中警务区', '重点管控', '2025-02-10', '2026-04-24 22:00:00'),
+('450202199407171236', '钱磊', '男', '13800004007', '29', '柳州市鱼峰区荣军路47号', '重点人员', NULL, '五里亭派出所', '五里亭警务区', '一般管控', '2025-04-20', NULL),
+('450202199408181236', '秦静', '女', '13800004008', '28', '柳州市柳南区红光路48号', '重点人员', NULL, '鹅山派出所', '鹅山警务区', '重点管控', '2025-01-25', '2026-04-25 15:30:00'),
+('450202199409191236', '尤杰', '男', '13800004009', '27', '柳州市柳北区北雀路49号', '前科人员', '抢劫前科', '雀儿山派出所', '雀儿山警务区', '一般管控', '2025-03-15', NULL),
+('450202199410201236', '许刚', '男', '13800004010', '26', '柳州市柳江区百朋路50号', '重点人员', NULL, '百朋派出所', '百朋警务区', '重点管控', '2025-05-25', NULL),
+('450202199501011237', '何瑶', '女', '13800005001', '31', '柳州市城中区弯塘路51号', '涉毒人员', '吸毒前科', '公园派出所', '公园警务区', '重点管控', '2025-02-28', '2026-04-25 09:00:00'),
+('450202199502021237', '吕强', '男', '13800005002', '31', '柳州市鱼峰区文笔路52号', '重点人员', NULL, '麒麟派出所', '麒麟警务区', '一般管控', '2025-04-01', NULL),
+('450202199503031237', '施敏', '女', '13800005003', '31', '柳州市柳南区飞鹅路53号', '重点人员', NULL, '南站派出所', '南站警务区', '重点管控', '2025-01-15', '2026-04-25 10:15:00'),
+('450202199504141237', '张勇', '男', '13800005004', '31', '柳州市柳北区沙塘路54号', '前科人员', '盗窃前科', '沙塘派出所', '沙塘警务区', '已撤控', '2025-05-01', NULL),
+('450202199505151237', '孔丽', '女', '13800005005', '30', '柳州市柳江区进德路55号', '重点人员', NULL, '进德派出所', '进德警务区', '一般管控', '2025-03-20', NULL),
+('450202199506161237', '曹峰', '男', '13800005006', '29', '柳州市城中区河东路56号', '涉毒人员', '吸毒前科', '河东派出所', '河东警务区', '待审批', '2025-06-15', NULL),
+('450202199507171237', '严磊', '男', '13800005007', '29', '柳州市鱼峰区东环路57号', '重点人员', NULL, '箭盘山派出所', '箭盘山警务区', '一般管控', '2025-04-10', '2026-04-25 16:30:00'),
+('450202199508181237', '华静', '女', '13800005008', '30', '柳州市柳南区壶西大道58号', '重点人员', NULL, '河西派出所', '河西警务区', '重点管控', '2025-02-05', NULL),
+('450202199509191237', '金杰', '男', '13800005009', '29', '柳州市柳北区长虹路59号', '前科人员', '故意伤害前科', '长塘派出所', '长塘警务区', '一般管控', '2025-05-05', NULL),
+('450202199510201237', '魏刚', '男', '13800005010', '30', '柳州市柳江区穿山路60号', '重点人员', NULL, '穿山派出所', '穿山警务区', '重点管控', '2025-03-01', NULL);
 
 
 -- 预警记录演示数据 (过去30天, 约4400条, 用存储过程批量生成)
@@ -135,10 +228,13 @@ BEGIN
     DECLARE alert_time DATETIME;
     DECLARE person_id VARCHAR(18);
     DECLARE cam_name VARCHAR(50);
+    DECLARE cam_code VARCHAR(100);
     DECLARE is_proc TINYINT;
     DECLARE sim_val FLOAT;
     DECLARE has_plate INT;
     DECLARE base_date DATETIME;
+    DECLARE p_gender VARCHAR(10);
+    DECLARE p_age_group VARCHAR(20);
 
     SET base_date = '2026-04-25 23:59:59';
 
@@ -154,10 +250,21 @@ BEGIN
                 + INTERVAL FLOOR(RAND() * 60) SECOND;
 
             -- 随机选一个布控人员
-            SELECT id_card_number INTO person_id FROM young_peoples
+            SELECT id_card_number, gender,
+                   CASE
+                       WHEN age < 18 THEN '少年'
+                       WHEN age < 30 THEN '青年'
+                       WHEN age < 40 THEN '中青年'
+                       WHEN age < 50 THEN '中年'
+                       ELSE '中老年'
+                   END
+            INTO person_id, p_gender, p_age_group FROM young_peoples
                 ORDER BY RAND() LIMIT 1;
 
-            SET cam_name = CONCAT('卡口_', FLOOR(1 + RAND() * 20));
+            -- 随机选一个摄像头
+            SELECT camera_name, camera_index_code INTO cam_name, cam_code FROM cameras
+                ORDER BY RAND() LIMIT 1;
+
             SET sim_val = ROUND(0.85 + RAND() * 0.149, 3);
             SET has_plate = FLOOR(RAND() * 3);
 
@@ -171,18 +278,22 @@ BEGIN
             END IF;
 
             INSERT INTO capture_records
-                (capture_id, person_id_card, camera_name, plate_no, capture_time, is_processed, similarity, face_pic_url, bkg_url, person_face_url)
+                (capture_id, person_id_card, person_face_url, capture_time, camera_name, camera_index_code, face_pic_url, bkg_url, similarity, gender, age_group, glass, plate_no, is_processed)
             VALUES (
                 CONCAT('YW', DATE_FORMAT(alert_time, '%Y%m%d%H%i%s'), FLOOR(1000 + RAND() * 8999)),
                 person_id,
-                cam_name,
-                IF(has_plate = 0, CONCAT('桂B', LPAD(FLOOR(RAND() * 99999), 5, '0')), NULL),
+                NULL,
                 alert_time,
-                is_proc,
+                cam_name,
+                cam_code,
+                NULL,
+                NULL,
                 sim_val,
-                NULL,
-                NULL,
-                NULL
+                p_gender,
+                p_age_group,
+                IF(FLOOR(RAND() * 2) = 0, '是', '否'),
+                IF(has_plate = 0, CONCAT('桂B', LPAD(FLOOR(RAND() * 99999), 5, '0')), NULL),
+                is_proc
             );
 
             SET j = j + 1;
@@ -197,7 +308,122 @@ DELIMITER ;
 CALL generate_capture_records();
 DROP PROCEDURE IF EXISTS generate_capture_records;
 
+-- 初始化任务状态
+INSERT INTO task_status (task_name, last_run_time, last_run_hash, status) VALUES
+('capture_sync', '2026-04-25 00:00:00', NULL, 'running'),
+('person_sync', '2026-04-25 00:00:00', NULL, 'idle');
+
 -- 验证
-SELECT 'capture_records' AS tbl, COUNT(*) AS cnt FROM capture_records
+SELECT 'young_peoples' AS tbl, COUNT(*) AS cnt FROM young_peoples
 UNION ALL
-SELECT 'young_peoples', COUNT(*) FROM young_peoples;
+SELECT 'capture_records', COUNT(*) FROM capture_records
+UNION ALL
+SELECT 'cameras', COUNT(*) FROM cameras
+UNION ALL
+SELECT 'cameras_type', COUNT(*) FROM cameras_type
+UNION ALL
+SELECT 'task_status', COUNT(*) FROM task_status;
+
+
+-- ==================== 线索管理表 ====================
+CREATE TABLE IF NOT EXISTS clues (
+    id                  INT AUTO_INCREMENT PRIMARY KEY COMMENT 'ID',
+    clue_number         VARCHAR(100) NOT NULL COMMENT '线索编号',
+    title               VARCHAR(500) DEFAULT NULL COMMENT '线索标题',
+    content_cr_id       TEXT DEFAULT NULL COMMENT '关联抓拍记录ID(逗号分隔)',
+    issue_date          DATE DEFAULT NULL COMMENT '下发日期',
+    deadline            DATE DEFAULT NULL COMMENT '截止日期',
+    status              VARCHAR(50) DEFAULT 'pending' COMMENT '状态: pending/in_progress/completed',
+    responsible_officer VARCHAR(100) DEFAULT NULL COMMENT '负责民警',
+    created_at          DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    updated_at          DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    INDEX idx_clue_number (clue_number),
+    INDEX idx_status (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='线索管理表';
+
+
+-- ==================== 同行人聚类临时表 ====================
+CREATE TABLE IF NOT EXISTS temp_companion_groups (
+    id                  INT AUTO_INCREMENT PRIMARY KEY COMMENT 'ID',
+    capture_ids         TEXT DEFAULT NULL COMMENT '抓拍记录ID列表',
+    group_id            VARCHAR(100) DEFAULT NULL COMMENT '聚类组ID',
+    camera_index_code   VARCHAR(100) DEFAULT NULL COMMENT '摄像头编号',
+    camera_name         VARCHAR(255) DEFAULT NULL COMMENT '摄像头名称',
+    start_time          DATETIME DEFAULT NULL COMMENT '开始时间',
+    end_time            DATETIME DEFAULT NULL COMMENT '结束时间',
+    member_count        INT DEFAULT 0 COMMENT '成员数量',
+    members             TEXT DEFAULT NULL COMMENT '成员身份证号(逗号分隔)',
+    bkg_urls            TEXT DEFAULT NULL COMMENT '背景图URL列表(逗号分隔)',
+    created_at          TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    INDEX idx_group_id (group_id),
+    INDEX idx_camera_index_code (camera_index_code)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='同行人聚类临时表';
+
+
+-- ==================== 人脸记录表 ====================
+CREATE TABLE IF NOT EXISTS face_records (
+    id                  VARCHAR(255) NOT NULL PRIMARY KEY COMMENT '记录ID',
+    name                VARCHAR(255) DEFAULT NULL COMMENT '姓名',
+    certificateNumber   VARCHAR(18) DEFAULT NULL COMMENT '身份证号',
+    plateNo             VARCHAR(20) DEFAULT NULL COMMENT '车牌号',
+    cameraName          VARCHAR(255) DEFAULT NULL COMMENT '摄像头名称',
+    cameraIndexCode     VARCHAR(100) DEFAULT NULL COMMENT '摄像头编号',
+    captureTime         DATETIME DEFAULT NULL COMMENT '抓拍时间',
+    bkgUrl              TEXT DEFAULT NULL COMMENT '背景图URL',
+    facePicUrl          TEXT DEFAULT NULL COMMENT '人脸图URL',
+    genderName          VARCHAR(10) DEFAULT NULL COMMENT '性别',
+    similarity          FLOAT DEFAULT NULL COMMENT '相似度',
+    INDEX idx_certificate (certificateNumber),
+    INDEX idx_capture_time (captureTime)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='人脸记录表';
+
+
+-- ==================== 驾驶员状态表 ====================
+CREATE TABLE IF NOT EXISTS driver_status (
+    id                  INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    cr_id               INT DEFAULT NULL COMMENT '抓拍记录ID',
+    is_driver           TINYINT DEFAULT NULL COMMENT '是否为驾驶员: 0否 1是',
+    created_at          TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at          TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY unique_id (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='驾驶员状态表';
+
+
+-- ==================== 临时摄像头表 ====================
+CREATE TABLE IF NOT EXISTS tmp_cameras (
+    id                  INT AUTO_INCREMENT PRIMARY KEY COMMENT 'ID',
+    cameraIndexCode     VARCHAR(100) DEFAULT NULL COMMENT '摄像头编号',
+    gbIndexCode         VARCHAR(100) DEFAULT NULL COMMENT '国标编号',
+    name                VARCHAR(255) DEFAULT NULL COMMENT '摄像头名称',
+    deviceIndexCode     VARCHAR(100) DEFAULT NULL COMMENT '设备编号',
+    longitude           DECIMAL(10,7) DEFAULT NULL COMMENT '经度',
+    latitude            DECIMAL(10,7) DEFAULT NULL COMMENT '纬度',
+    altitude            DECIMAL(10,2) DEFAULT NULL COMMENT '海拔',
+    pixel               VARCHAR(50) DEFAULT NULL COMMENT '像素',
+    cameraType          VARCHAR(50) DEFAULT NULL COMMENT '摄像头类型',
+    cameraTypeName      VARCHAR(100) DEFAULT NULL COMMENT '摄像头类型名称',
+    channelNo           INT DEFAULT NULL COMMENT '通道号',
+    capability          VARCHAR(255) DEFAULT NULL COMMENT '能力',
+    subStream           VARCHAR(50) DEFAULT NULL COMMENT '子码流',
+    channels            VARCHAR(255) DEFAULT NULL COMMENT '通道',
+    installLocation     VARCHAR(255) DEFAULT NULL COMMENT '安装位置',
+    capabilitiySet      VARCHAR(255) DEFAULT NULL,
+    microphoneCapability VARCHAR(50) DEFAULT NULL,
+    intelligentSet      VARCHAR(255) DEFAULT NULL,
+    intelligentSetName  VARCHAR(255) DEFAULT NULL,
+    deviceType          VARCHAR(50) DEFAULT NULL,
+    deviceTypeName      VARCHAR(100) DEFAULT NULL,
+    deviceCategory      VARCHAR(50) DEFAULT NULL,
+    deviceCategoryName  VARCHAR(100) DEFAULT NULL,
+    deviceCatalog       VARCHAR(50) DEFAULT NULL,
+    deviceCatalogName   VARCHAR(100) DEFAULT NULL,
+    createTime          DATETIME DEFAULT NULL,
+    updateTime          DATETIME DEFAULT NULL,
+    unitIndexCode       VARCHAR(100) DEFAULT NULL,
+    treatyType          VARCHAR(50) DEFAULT NULL,
+    treatyTypeName      VARCHAR(100) DEFAULT NULL,
+    treatyTypeCode      VARCHAR(50) DEFAULT NULL,
+    status              VARCHAR(20) DEFAULT NULL,
+    statusName          VARCHAR(50) DEFAULT NULL,
+    INDEX idx_camera_index_code (cameraIndexCode)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='临时摄像头表';

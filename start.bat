@@ -20,5 +20,5 @@ if not exist ".venv\" (
 .venv\Scripts\python -m pip install -q --no-index --find-links deps -r requirements.txt 2> nul || .venv\Scripts\python -m pip install -q -r requirements.txt
 
 echo 启动服务...
-.venv\Scripts\python app.py
+.venv\Scripts\python run.py
 pause

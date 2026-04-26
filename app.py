@@ -7,9 +7,10 @@ import os
 import mimetypes
 import requests as http_requests
 import sys
+import logging
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-from config_file import DB2_CONFIG
+from config import DB_CONFIG, FLASK_HOST, FLASK_PORT, FLASK_DEBUG
 
 mimetypes.add_type('font/woff2', '.woff2')
 mimetypes.add_type('font/ttf', '.ttf')
@@ -17,7 +18,10 @@ mimetypes.add_type('font/ttf', '.ttf')
 app = Flask(__name__, template_folder='.', static_folder='static')
 app.config['JSON_AS_ASCII'] = False
 
-DB_CONFIG = DB2_CONFIG
+logger = logging.getLogger(__name__)
+
+# 注册线索管理路由（必须在 app 创建之后）
+import clue_routes  # noqa: E402,F401
 
 # 缓存 young_peoples 表的可用列，首次请求时探测
 _yp_columns_cache = None
@@ -565,19 +569,19 @@ def get_today_controls():
 
 @app.route('/api/report/stats')
 def get_report_stats():
-    """按分局统计报表"""
+    """按派出所统计报表"""
     conn = get_db()
     try:
         with conn.cursor(DictCursor) as cursor:
-            # 按 sub_bureau 聚合 capture_records
+            # 按 police_station 聚合 capture_records（表实际字段名）
             cursor.execute("""
-                SELECT yp.sub_bureau,
+                SELECT yp.police_station,
                        COUNT(cr.id) AS alert_count,
                        SUM(CASE WHEN cr.is_processed >= 2 THEN 1 ELSE 0 END) AS signed_count
                 FROM capture_records cr
                 LEFT JOIN young_peoples yp ON cr.person_id_card = yp.id_card_number
-                WHERE yp.sub_bureau IS NOT NULL AND yp.sub_bureau != ''
-                GROUP BY yp.sub_bureau
+                WHERE yp.police_station IS NOT NULL AND yp.police_station != ''
+                GROUP BY yp.police_station
                 ORDER BY alert_count DESC
             """)
             rows = cursor.fetchall()
@@ -588,7 +592,7 @@ def get_report_stats():
                 signed = r['signed_count'] or 0
                 rate = round(signed / total * 100, 1) if total > 0 else 0
                 items.append({
-                    'name': r['sub_bureau'],
+                    'name': r['police_station'],
                     'alerts': total,
                     'staff': max(1, int(total * random.uniform(0.02, 0.08))),
                     'rate': rate,
@@ -626,5 +630,199 @@ def get_report_stats():
         conn.close()
 
 
+# ==================== Dify 智能分析 API (来自 jd_query_service.py) ====================
+
+# 尝试导入可选的 Dify 分析模块，缺失时对应路由返回 503
+_dify_modules = {}
+
+try:
+    from queryPersonByAttrWithPage import dify_call_person_query
+    _dify_modules['person_query'] = dify_call_person_query
+except Exception as e:
+    logger.warning(f"[Dify] 人员身份查询模块未加载: {e}")
+
+try:
+    from queryByImageModelWithPage import dify_call_face_compare
+    _dify_modules['face_compare'] = dify_call_face_compare
+except Exception as e:
+    logger.warning(f"[Dify] 人脸比对模块未加载: {e}")
+
+try:
+    from queryDataByImageModelWithPage1 import dify_call_allpic_by_url
+    _dify_modules['allpic_by_url'] = dify_call_allpic_by_url
+except Exception as e:
+    logger.warning(f"[Dify] 图片URL查询模块未加载: {e}")
+
+try:
+    from insert_face_records import difly_call_insert_face_records as dify_call_insert_face_records
+    _dify_modules['insert_face'] = dify_call_insert_face_records
+except Exception as e:
+    logger.warning(f"[Dify] 抓拍入库模块未加载: {e}")
+
+try:
+    from choose_peoples_together_insert_into_db import run_companion_clustering
+    _dify_modules['cluster'] = run_companion_clustering
+except Exception as e:
+    logger.warning(f"[Dify] 同行人聚类模块未加载: {e}")
+
+try:
+    from find_drivers_insert_into_db import update_driver_status_from_json
+    _dify_modules['driver'] = update_driver_status_from_json
+except Exception as e:
+    logger.warning(f"[Dify] 同机判断模块未加载: {e}")
+
+try:
+    from operate_jddb_by_http import clear_and_insert_tmp_cameras
+    _dify_modules['tmp_cameras'] = clear_and_insert_tmp_cameras
+except Exception as e:
+    logger.warning(f"[Dify] 摄像头同步模块未加载: {e}")
+
+
+def _dify_unavailable(module_name):
+    return jsonify({
+        "success": False,
+        "message": f"模块 {module_name} 暂不可用，请检查依赖配置。"
+    }), 503
+
+
+@app.route('/queryPersonByAttrWithPage', methods=['POST'])
+def query_vehicle_images_endpoint():
+    """根据人员身份信息查询人脸"""
+    if 'person_query' not in _dify_modules:
+        return _dify_unavailable('person_query')
+    try:
+        input_data = request.get_json()
+        if not input_data:
+            return jsonify({"error": "No JSON data provided"}), 400
+        name = input_data.get('name')
+        certificate_number = input_data.get('certificate_number')
+        if not name and not certificate_number:
+            return jsonify({"error": "name or certificate_number is required"}), 400
+        result = _dify_modules['person_query'](input_data)
+        return jsonify(result)
+    except Exception as e:
+        logger.error(f"Error in queryPersonByAttrWithPage: {e}")
+        return jsonify({"error": f"Internal server error: {str(e)}"}), 500
+
+
+@app.route('/queryByImageModelWithPage', methods=['POST'])
+def query_people_by_images():
+    """根据人脸查询身份信息"""
+    if 'face_compare' not in _dify_modules:
+        return _dify_unavailable('face_compare')
+    try:
+        input_data = request.get_json()
+        if not input_data:
+            return jsonify({"error": "No JSON data provided"}), 400
+        image_url = input_data.get('image_url')
+        image_data = input_data.get('image_data')
+        model_data = input_data.get('model_data')
+        if not image_url and not image_data and not model_data:
+            return jsonify({"error": "image_url or image_data or model_data is required"}), 400
+        result = _dify_modules['face_compare'](input_data)
+        return jsonify(result)
+    except Exception as e:
+        logger.error(f"Error in queryByImageModelWithPage: {e}")
+        return jsonify({"error": f"Internal server error: {str(e)}"}), 500
+
+
+@app.route('/queryDataByImageModelWithPage1', methods=['POST'])
+def query_allpic_by_url():
+    """根据图片URL查询所有抓拍图片和信息"""
+    if 'allpic_by_url' not in _dify_modules:
+        return _dify_unavailable('allpic_by_url')
+    try:
+        input_data = request.get_json()
+        if not input_data:
+            return jsonify({"error": "No JSON data provided"}), 400
+        image_urls = input_data.get('image_urls', [])
+        image_datas = input_data.get('image_datas', [])
+        if len(image_urls) == 0 and len(image_datas) == 0:
+            return jsonify({"error": "image_urls or image_datas is required"}), 400
+        result = _dify_modules['allpic_by_url'](input_data)
+        return jsonify(result)
+    except Exception as e:
+        logger.error(f"Error in queryDataByImageModelWithPage1: {e}")
+        return jsonify({"error": f"Internal server error: {str(e)}"}), 500
+
+
+@app.route('/insertFaceRecordsIntoDb', methods=['POST'])
+def insert_face_records():
+    """将抓拍信息插入或更新到数据库"""
+    if 'insert_face' not in _dify_modules:
+        return _dify_unavailable('insert_face')
+    try:
+        input_data = request.get_json()
+        if not input_data:
+            return jsonify({"error": "No JSON data provided"}), 400
+        cert_no = request.args.get('certificateNumber')
+        if not cert_no:
+            return jsonify({"error": "缺少 certificateNumber 参数"}), 400
+        result = _dify_modules['insert_face'](input_data, cert_no)
+        return jsonify(result)
+    except Exception as e:
+        logger.error(f"Error in insertFaceRecordsIntoDb: {e}")
+        return jsonify({"error": f"Internal server error: {str(e)}"}), 500
+
+
+@app.route('/cluster', methods=['POST'])
+def cluster_api():
+    """同行人聚类分析"""
+    if 'cluster' not in _dify_modules:
+        return _dify_unavailable('cluster')
+    try:
+        data = request.json or {}
+        result = _dify_modules['cluster'](
+            data.get('start_time'),
+            data.get('end_time'),
+            data.get('time_window_up'),
+            data.get('time_window_down'),
+            data.get('cameras_type')
+        )
+        return jsonify(result)
+    except Exception as e:
+        logger.error(f"Error in cluster_api: {e}")
+        return jsonify({'status': 'error', 'message': 'API调用失败', 'data': {}}), 500
+
+
+@app.route('/judgeDrivers', methods=['POST'])
+def judge_drivers():
+    """判断是否为同机"""
+    if 'driver' not in _dify_modules:
+        return _dify_unavailable('driver')
+    try:
+        data = request.json or {}
+        result = _dify_modules['driver'](data)
+        return jsonify(result)
+    except Exception as e:
+        logger.error(f"Error in judgeDrivers: {e}")
+        return jsonify({'status': 'error', 'message': 'API调用失败', 'updated_count': 0}), 500
+
+
+@app.route('/updateTmpCameras', methods=['POST'])
+def update_tmp_cameras():
+    """清空并插入tmp_cameras表"""
+    if 'tmp_cameras' not in _dify_modules:
+        return _dify_unavailable('tmp_cameras')
+    try:
+        result = _dify_modules['tmp_cameras']()
+        return jsonify(result)
+    except Exception as e:
+        logger.error(f"Error in updateTmpCameras: {e}")
+        return jsonify({'status': 'error', 'message': f'更新tmp_cameras表失败: {str(e)}', 'data': {}}), 500
+
+
+# ==================== 系统管理 API ====================
+
+@app.route('/api/health')
+def health_check():
+    """健康检查接口"""
+    return jsonify({
+        'status': 'ok',
+        'modules': list(_dify_modules.keys()),
+        'timestamp': datetime.now().isoformat()
+    })
+
+
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5050, debug=True)
+    app.run(host=FLASK_HOST, port=FLASK_PORT, debug=FLASK_DEBUG)

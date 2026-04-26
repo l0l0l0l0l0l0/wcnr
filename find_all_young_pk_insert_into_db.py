@@ -11,14 +11,11 @@ import sys
 import base64
 from urllib.parse import urlparse
 
-# 添加项目根目录路径以便导入 config_file
+# 添加项目根目录路径以便导入 config
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from config_file import DB2_CONFIG
+from config import DB_CONFIG
 
-# ==================== 配置 ====================
-
-# 数据库配置
-DB_CONFIG = DB2_CONFIG
+# ==================== 配置 ================= ===
 
 # 卡口抓拍接口（注意：请确认你实际使用的 IP 是文档里的 10.33.42.185 还是你之前用的 71.196.11.250）
 # 这里暂时保留你原来代码中的 IP，如果报错请切换为文档中的 URL
