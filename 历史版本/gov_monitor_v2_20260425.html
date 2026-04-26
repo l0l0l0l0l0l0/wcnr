@@ -1550,13 +1550,7 @@
     // 从后端获取预警列表
     async function loadAlerts(page = 1, perPage = 20) {
       try {
-        const params = new URLSearchParams({ page: String(page), per_page: String(perPage) });
-        const keyword = document.querySelector('.filter-input[placeholder="证件/车牌号"]')?.value;
-        const status = document.querySelector('.filter-select option:checked')?.textContent;
-        if (keyword) params.append('keyword', keyword);
-        if (status && status !== '全部') params.append('status', status);
-
-        const res = await fetch(`${API_BASE}/api/alerts?${params}`);
+        const res = await fetch(`${API_BASE}/api/alerts?page=${page}&per_page=${perPage}`);
         const result = await res.json();
         if (!result.success) return;
 
@@ -1634,31 +1628,18 @@
       goToPage(Math.min(p, totalPages));
     }
 
-    function proxyUrl(url) {
-      if (!url) return '';
-      return `${API_BASE}/proxy-pic?url=${encodeURIComponent(url)}`;
-    }
-
     function renderCards(data) {
       const grid = document.getElementById('cardsGrid');
       grid.innerHTML = data.map(item => {
-        const sim = typeof item.similarity === 'number' ? item.similarity : 0;
-        const simClass = sim >= 95 ? 'high' : sim >= 90 ? 'mid' : 'low';
+        const simClass = item.similarity >= 95 ? 'high' : item.similarity >= 90 ? 'mid' : 'low';
         const status = statusConfig[item.status] || statusConfig['待签收'];
-
-        const snapSrc = proxyUrl(item.bkg_url || item.face_pic_url);
-        const faceSrc = proxyUrl(item.person_face_url || item.face_pic_url);
 
         return `
           <div class="person-card">
             <div class="card-images">
-              <div class="img-snap" onclick="window.open('${snapSrc}','_blank')">
-                ${snapSrc ? `<img src="${snapSrc}" style="width:100%;height:100%;object-fit:cover;border-radius:6px;" onerror="this.style.display='none';this.parentElement.innerHTML='<i class=\\'fas fa-camera\\'></i><span>抓拍图</span>'">` : '<i class="fas fa-camera"></i><span>抓拍图</span>'}
-              </div>
-              <div class="img-face" onclick="window.open('${faceSrc}','_blank')">
-                ${faceSrc ? `<img src="${faceSrc}" style="width:100%;height:100%;object-fit:cover;border-radius:6px;" onerror="this.style.display='none';this.parentElement.innerHTML='<i class=\\'fas fa-user\\'></i><span>人脸图</span>'">` : '<i class="fas fa-user"></i><span>人脸图</span>'}
-              </div>
-              <div class="similarity-badge ${simClass}">${sim}%</div>
+              <div class="img-snap"><i class="fas fa-camera"></i><span>抓拍图</span></div>
+              <div class="img-face"><i class="fas fa-user"></i><span>人脸图</span></div>
+              <div class="similarity-badge ${simClass}">${item.similarity}%</div>
             </div>
             <div class="card-body">
               <div class="person-name-row">
@@ -1883,14 +1864,12 @@
         const status = document.getElementById('ctrlFilterStatus')?.value || '';
         const keyword = document.getElementById('ctrlFilterKeyword')?.value || '';
         const address = document.getElementById('ctrlFilterAddress')?.value || '';
-        const photo = document.getElementById('ctrlFilterPhoto')?.value || '';
 
         const params = new URLSearchParams({ page: String(page), per_page: String(perPage) });
         if (library) params.append('library', library);
         if (status) params.append('status', status);
         if (keyword) params.append('keyword', keyword);
         if (address) params.append('address', address);
-        if (photo) params.append('photo', photo);
 
         const res = await fetch(`${API_BASE}/api/controls?${params}`);
         const result = await res.json();
@@ -1928,7 +1907,7 @@
         return `
           <tr class="${isSelected}" data-id="${item.control_id}">
             <td><input type="checkbox" class="ctrl-row-checkbox" ${controlSelectedIds.has(item.control_id) ? 'checked' : ''} onchange="toggleRowSelect('${item.control_id}')"></td>
-            <td><div class="control-photo">${item.photo_url ? `<img src="${API_BASE}/proxy-pic?url=${encodeURIComponent(item.photo_url)}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" onerror="this.outerHTML='<i class=fas-fa-user></i>'">` : '<i class="fas fa-user"></i>'}</div></td>
+            <td><div class="control-photo"><i class="fas fa-user"></i></div></td>
             <td><strong>${item.name}</strong></td>
             <td>${item.id_card}</td>
             <td>${item.gender || '--'}</td>

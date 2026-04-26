@@ -1,511 +1,397 @@
-from flask import Flask, jsonify, render_template, request
-from flask_sqlalchemy import SQLAlchemy
+from flask import Flask, jsonify, render_template, request, Response
+import pymysql
+from pymysql.cursors import DictCursor
 from datetime import datetime, timedelta
 import random
 import os
 import mimetypes
+import requests as http_requests
+import sys
+
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+from config_file import DB2_CONFIG
 
 mimetypes.add_type('font/woff2', '.woff2')
 mimetypes.add_type('font/ttf', '.ttf')
 
 app = Flask(__name__, template_folder='.', static_folder='static')
-# 基于 app.py 所在目录的绝对路径，确保无论从哪启动都能找到数据库
-base_dir = os.path.abspath(os.path.dirname(__file__))
-db_path = os.path.join(base_dir, 'instance', 'monitor.db')
-app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{db_path}'
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['JSON_AS_ASCII'] = False
 
-db = SQLAlchemy(app)
+DB_CONFIG = DB2_CONFIG
+
+# 缓存 young_peoples 表的可用列，首次请求时探测
+_yp_columns_cache = None
 
 
-# ==================== 数据模型 ====================
-class AlertRecord(db.Model):
-    """预警记录表"""
-    __tablename__ = 'alert_records'
-
-    id = db.Column(db.Integer, primary_key=True)
-    alert_id = db.Column(db.String(50), nullable=False)          # 预警编号
-    person_name = db.Column(db.String(50), nullable=False)       # 人员姓名
-    id_card_tail = db.Column(db.String(10))                      # 身份证号尾号
-    similarity = db.Column(db.Float, nullable=False)             # 相似度
-    alert_time = db.Column(db.DateTime, nullable=False)          # 预警时间
-    location = db.Column(db.String(100))                         # 所在位置
-    camera = db.Column(db.String(50))                            # 卡口名称
-    alert_type = db.Column(db.String(20))                        # 类型: 人脸/车辆
-    status = db.Column(db.String(20), default='待签收')           # 流转状态
-    person_tag = db.Column(db.String(50))                        # 人员标签
-    created_at = db.Column(db.DateTime, default=datetime.now)
-
-    def to_dict(self):
-        return {
-            'id': self.alert_id,
-            'name': self.person_name,
-            'id_tail': self.id_card_tail,
-            'similarity': self.similarity,
-            'time': self.alert_time.strftime('%Y-%m-%d %H:%M:%S'),
-            'location': self.location,
-            'camera': self.camera,
-            'type': self.alert_type,
-            'status': self.status,
-            'person_tag': self.person_tag,
-        }
+def get_db():
+    return pymysql.connect(**DB_CONFIG)
 
 
-class DailyStat(db.Model):
-    """每日统计快照表"""
-    __tablename__ = 'daily_stats'
+def get_yp_columns(conn):
+    """探测 young_peoples 表实际有哪些列"""
+    global _yp_columns_cache
+    if _yp_columns_cache is not None:
+        return _yp_columns_cache
 
-    id = db.Column(db.Integer, primary_key=True)
-    stat_date = db.Column(db.Date, nullable=False, unique=True)
-    total_alerts = db.Column(db.Integer, default=0)      # 当日预警数
-    pending_sign = db.Column(db.Integer, default=0)      # 待签收
-    pending_feedback = db.Column(db.Integer, default=0)  # 待反馈
-    feedback_done = db.Column(db.Integer, default=0)     # 已反馈
-    signed = db.Column(db.Integer, default=0)            # 已签收
+    try:
+        with conn.cursor(DictCursor) as cursor:
+            cursor.execute("SHOW COLUMNS FROM young_peoples")
+            _yp_columns_cache = {row['Field'] for row in cursor.fetchall()}
+    except Exception:
+        _yp_columns_cache = {'id_card_number', 'person_face_url', 'last_capture_query_time'}
 
-
-class ControlPerson(db.Model):
-    """布控人员表"""
-    __tablename__ = 'control_persons'
-
-    id = db.Column(db.Integer, primary_key=True)
-    control_id = db.Column(db.String(50), nullable=False, unique=True)  # 布控编号
-    name = db.Column(db.String(50), nullable=False)       # 姓名
-    id_card = db.Column(db.String(18))                    # 身份证号
-    gender = db.Column(db.String(10))                     # 性别
-    age = db.Column(db.Integer)                           # 年龄
-    ethnicity = db.Column(db.String(20))                  # 民族
-    control_library = db.Column(db.String(50))            # 布控库
-    control_status = db.Column(db.String(20), default='布控中')  # 布控状态
-    latest_alert_time = db.Column(db.DateTime)            # 近24小时最新预警
-    sub_bureau = db.Column(db.String(50))                 # 所属分局
-    police_station = db.Column(db.String(50))             # 所属派出所
-    community = db.Column(db.String(50))                  # 所属社区
-    alias = db.Column(db.String(50))                      # 曾用名
-    phone = db.Column(db.String(20))                      # 手机号
-    household_address = db.Column(db.String(200))         # 户籍地址
-    current_address = db.Column(db.String(200))           # 现住址
-    photo_url = db.Column(db.String(200))                 # 照片路径
-    created_at = db.Column(db.DateTime, default=datetime.now)
-
-    def to_dict(self):
-        return {
-            'control_id': self.control_id,
-            'name': self.name,
-            'id_card': self.id_card,
-            'gender': self.gender,
-            'age': self.age,
-            'ethnicity': self.ethnicity,
-            'control_library': self.control_library,
-            'control_status': self.control_status,
-            'latest_alert_time': self.latest_alert_time.strftime('%Y-%m-%d %H:%M') if self.latest_alert_time else '--',
-            'sub_bureau': self.sub_bureau,
-            'police_station': self.police_station,
-            'community': self.community,
-            'alias': self.alias or '--',
-            'phone': self.phone,
-            'household_address': self.household_address,
-            'current_address': self.current_address,
-            'photo_url': self.photo_url,
-        }
+    return _yp_columns_cache
 
 
-class ControlRecord(db.Model):
-    """布控操作记录表"""
-    __tablename__ = 'control_records'
-
-    id = db.Column(db.Integer, primary_key=True)
-    control_person_id = db.Column(db.Integer, db.ForeignKey('control_persons.id'))
-    action = db.Column(db.String(50), nullable=False)     # 操作类型: 撤控/删除/导入
-    operator = db.Column(db.String(50), default='管理员')   # 操作人
-    reason = db.Column(db.String(200))                    # 操作原因
-    created_at = db.Column(db.DateTime, default=datetime.now)
+def safe_get(row, key, default='--'):
+    """安全取值，字段不存在时返回默认值"""
+    if key in row and row[key] is not None:
+        val = row[key]
+        if isinstance(val, str) and val in ('null', ''):
+            return default
+        return val
+    return default
 
 
-# ==================== 种子数据 ====================
-def init_db():
-    with app.app_context():
-        db.create_all()
-
-        # 如果已有预警数据则跳过预警数据生成
-        has_alert_data = AlertRecord.query.first() is not None
-        has_control_data = ControlPerson.query.first() is not None
-
-        if not has_alert_data:
-            _seed_alerts()
-
-        if not has_control_data:
-            _seed_controls()
-
-        db.session.commit()
-        print(f"数据库初始化完成，预警记录: {AlertRecord.query.count()} 条，布控人员: {ControlPerson.query.count()} 条")
-
-
-def _seed_alerts():
-    districts = ['城中区', '鱼峰区', '柳南区', '柳北区', '柳江区']
-    statuses = ['待签收', '待反馈', '已反馈', '已签收']
-    types = ['人脸', '车辆']
-    names = ['张伟', '王芳', '李娜', '刘洋', '陈静', '杨明', '赵强', '黄磊',
-             '周杰', '吴刚', '徐丽', '孙涛', '马超', '朱红', '胡平', '郭亮',
-             '林霞', '何勇', '高明', '罗辉']
-
-    now = datetime(2026, 4, 23, 16, 30, 0)
-
-    # 生成历史数据（过去30天）
-    for day_offset in range(30, -1, -1):
-        day_start = now.replace(hour=0, minute=0, second=0) - timedelta(days=day_offset)
-        daily_count = random.randint(80, 200)
-
-        for i in range(daily_count):
-            time_offset = timedelta(
-                hours=random.randint(0, 23),
-                minutes=random.randint(0, 59),
-                seconds=random.randint(0, 59)
-            )
-            alert_time = day_start + time_offset
-
-            if day_offset > 3:
-                status = random.choices(
-                    ['已签收', '已反馈', '待反馈', '待签收'],
-                    weights=[50, 30, 10, 10]
-                )[0]
-            else:
-                status = random.choice(statuses)
-
-            record = AlertRecord(
-                alert_id=f"YW{alert_time.strftime('%Y%m%d%H%M%S')}{random.randint(1000,9999)}",
-                person_name=random.choice(names),
-                id_card_tail=f"{random.randint(1000,9999)}",
-                similarity=round(random.uniform(85.0, 99.9), 1),
-                alert_time=alert_time,
-                location=f"柳州市{random.choice(districts)}",
-                camera=f"卡口_{random.randint(1, 20)}",
-                alert_type=random.choice(types),
-                status=status,
-                person_tag='重点人员'
-            )
-            db.session.add(record)
-
-    # 生成今日统计快照
-    today = now.date()
-    today_records = AlertRecord.query.filter(
-        db.func.date(AlertRecord.alert_time) == today
-    ).all()
-
-    stat = DailyStat(
-        stat_date=today,
-        total_alerts=len(today_records),
-        pending_sign=sum(1 for r in today_records if r.status == '待签收'),
-        pending_feedback=sum(1 for r in today_records if r.status == '待反馈'),
-        feedback_done=sum(1 for r in today_records if r.status == '已反馈'),
-        signed=sum(1 for r in today_records if r.status == '已签收'),
-    )
-    db.session.add(stat)
-
-
-def _seed_controls():
-    """生成布控人员种子数据"""
-    libraries = ['重点人员库', '在逃人员库', '涉恐人员库']
-    statuses = ['布控中', '待审批', '已撤控']
-    genders = ['男', '女']
-    ethnicities = ['汉族', '壮族', '回族', '瑶族', '苗族']
-
-    # 柳州各分局-派出所-社区 层级数据
-    bureau_data = {
-        '城中分局': {
-            '城中派出所': ['五星社区', '龙城社区', '东门社区'],
-            '公园派出所': ['公园社区', '柳侯社区'],
-        },
-        '鱼峰分局': {
-            '箭盘派出所': ['屏山社区', '白云社区'],
-            '荣军派出所': ['荣军社区', '岩村社区'],
-        },
-        '柳南分局': {
-            '南站派出所': ['飞鹅社区', '南站社区'],
-            '河西派出所': ['河西社区', '宏都社区'],
-        },
-        '柳北分局': {
-            '胜利派出所': ['胜利社区', '北雀社区'],
-            '解放派出所': ['解放社区', '雅儒社区'],
-        },
-        '柳江分局': {
-            '拉堡派出所': ['拉堡社区', '荷塘社区'],
-            '城东派出所': ['城东社区', '基隆社区'],
-        },
-    }
-
-    names = [
-        ('张伟', '张某'), ('王芳', '芳芳'), ('李娜', '小李'), ('刘洋', '大洋'),
-        ('陈静', '静静'), ('杨明', '老杨'), ('赵强', '强子'), ('黄磊', '小磊'),
-        ('周杰', '杰哥'), ('吴刚', '刚子'), ('徐丽', '丽丽'), ('孙涛', '涛涛'),
-        ('马超', '超哥'), ('朱红', '红红'), ('胡平', '平哥'), ('郭亮', '亮仔'),
-        ('林霞', '霞姐'), ('何勇', '勇哥'), ('高明', '明明'), ('罗辉', '辉哥'),
-        ('邓敏', '敏敏'), ('萧然', '小萧'), ('唐丽', '唐唐'), ('曾强', '强子'),
-        ('彭亮', '亮亮'), ('潘军', '军哥'), ('袁雪', '小雪'), ('蒋文', '文哥'),
-        ('蔡华', '华仔'), ('贾敏', '小敏'), ('魏东', '东哥'), ('薛峰', '峰哥'),
-        ('叶伟', '伟哥'), ('余洋', '洋洋'), ('杜娟', '娟娟'), ('丁磊', '磊磊'),
-        ('夏雨', '小雨'), ('姜波', '波波'), ('范琳', '琳琳'), ('方强', '强哥'),
-        ('金辉', '辉仔'), ('谭静', '静静'), ('廖军', '军军'), ('石磊', '石头'),
-        ('熊伟', '大熊'), ('孟丽', '小丽'), ('秦波', '波哥'), ('阎敏', '敏姐'),
-        ('薛强', '强子'), ('侯勇', '勇子'), ('雷刚', '刚哥'), ('龙飞', '龙哥'),
-        ('万敏', '小万'), ('段平', '平子'), ('龚丽', '丽丽'), ('钱伟', '钱哥'),
-        ('汤静', '汤汤'), ('孔军', '孔哥'), ('白磊', '小白'), ('洪强', '洪哥'),
-    ]
-
-    # 柳州各区地址
-    addresses = {
-        '城中分局': ['城中区五星街', '城中区解放路', '城中区中山东路', '城中区龙城路', '城中区东环大道'],
-        '鱼峰分局': ['鱼峰区屏山大道', '鱼峰区白云路', '鱼峰区荣军路', '鱼峰区箭盘路', '鱼峰区柳石路'],
-        '柳南分局': ['柳南区飞鹅路', '柳南区航生路', '柳南区河西西路', '柳南区西环路', '柳南区南站路'],
-        '柳北分局': ['柳北区胜利路', '柳北区北雀路', '柳北区解放北路', '柳北区雅儒路', '柳北区跃进路'],
-        '柳江分局': ['柳江区拉堡镇兴柳路', '柳江区拉堡镇柳堡路', '柳江区荷塘路', '柳江区基隆路', '柳江区城东大道'],
-    }
-
-    now = datetime.now()
-
-    for i, (name, alias) in enumerate(names):
-        # 随机选择分局
-        sub_bureau = random.choice(list(bureau_data.keys()))
-        police_station = random.choice(list(bureau_data[sub_bureau].keys()))
-        community = random.choice(bureau_data[sub_bureau][police_station])
-
-        # 状态分布：布控中 60%、待审批 20%、已撤控 20%
-        status = random.choices(statuses, weights=[60, 20, 20])[0]
-
-        # 年龄 20~60
-        age = random.randint(20, 60)
-        birth_year = 2026 - age
-        birth_month = random.randint(1, 12)
-        birth_day = random.randint(10, 28)
-
-        # 身份证号：4502 + 区码 + 出生日期 + 顺序码 + 校验位（模拟）
-        area_code = random.choice(['02', '03', '04', '05', '06'])
-        id_card = f"45{area_code}{birth_year}{birth_month:02d}{birth_day:02d}{random.randint(100, 999)}X"
-
-        # 手机号
-        phone = f"138{random.randint(1000, 9999)}{random.randint(1000, 9999)}"
-
-        # 地址
-        street = random.choice(addresses[sub_bureau])
-        house_num = random.randint(1, 200)
-        household_address = f"柳州市{street}{house_num}号"
-        current_address = f"柳州市{street}{house_num + random.randint(1, 50)}号"
-
-        # 最新预警时间（部分人员有，部分没有）
-        latest_alert = None
-        if status == '布控中' and random.random() > 0.3:
-            latest_alert = now - timedelta(hours=random.randint(1, 24), minutes=random.randint(0, 59))
-        elif random.random() > 0.7:
-            latest_alert = now - timedelta(hours=random.randint(1, 72), minutes=random.randint(0, 59))
-
-        person = ControlPerson(
-            control_id=f"BK{now.strftime('%Y%m%d')}{random.randint(1000, 9999)}",
-            name=name,
-            id_card=id_card,
-            gender=random.choice(genders),
-            age=age,
-            ethnicity=random.choice(ethnicities),
-            control_library=random.choice(libraries),
-            control_status=status,
-            latest_alert_time=latest_alert,
-            sub_bureau=sub_bureau,
-            police_station=police_station,
-            community=community,
-            alias=alias,
-            phone=phone,
-            household_address=household_address,
-            current_address=current_address,
-            photo_url=None,
-        )
-        db.session.add(person)
-
-
-# ==================== API 路由 ====================
+# ==================== 预警中心 API ====================
 
 @app.route('/')
 def index():
-    """首页"""
     return render_template('gov_monitor_v2.html')
 
 
 @app.route('/v2')
 def index_v2():
-    """v2 版本首页"""
     return render_template('gov_monitor_v2.html')
 
 
 @app.route('/api/stats')
 def get_stats():
-    """获取统计数据"""
-    today = datetime.now().date()
+    """预警统计：基于 capture_records 表"""
+    conn = get_db()
+    try:
+        with conn.cursor(DictCursor) as cursor:
+            today = datetime.now().strftime('%Y-%m-%d')
 
-    # 历史预警总数
-    total_history = AlertRecord.query.count()
+            # 历史预警总数
+            cursor.execute("SELECT COUNT(*) AS cnt FROM capture_records")
+            history_total = cursor.fetchone()['cnt']
 
-    # 今日预警数
-    today_count = AlertRecord.query.filter(
-        db.func.date(AlertRecord.alert_time) == today
-    ).count()
+            # 今日预警数
+            cursor.execute(
+                "SELECT COUNT(*) AS cnt FROM capture_records WHERE DATE(capture_time) = %s",
+                (today,)
+            )
+            today_total = cursor.fetchone()['cnt']
 
-    # 今日各状态数量
-    today_pending_sign = AlertRecord.query.filter(
-        db.func.date(AlertRecord.alert_time) == today,
-        AlertRecord.status == '待签收'
-    ).count()
+            # 今日各状态 — capture_records 没有 status 字段，用 is_processed 模拟
+            # is_processed=0 待签收, is_processed=1 待反馈, is_processed=2 已反馈
+            cursor.execute(
+                "SELECT COUNT(*) AS cnt FROM capture_records WHERE DATE(capture_time) = %s AND is_processed = 0",
+                (today,)
+            )
+            pending_sign = cursor.fetchone()['cnt']
 
-    today_pending_feedback = AlertRecord.query.filter(
-        db.func.date(AlertRecord.alert_time) == today,
-        AlertRecord.status == '待反馈'
-    ).count()
+            cursor.execute(
+                "SELECT COUNT(*) AS cnt FROM capture_records WHERE DATE(capture_time) = %s AND is_processed = 1",
+                (today,)
+            )
+            pending_feedback = cursor.fetchone()['cnt']
 
-    today_feedback_done = AlertRecord.query.filter(
-        db.func.date(AlertRecord.alert_time) == today,
-        AlertRecord.status == '已反馈'
-    ).count()
+            cursor.execute(
+                "SELECT COUNT(*) AS cnt FROM capture_records WHERE DATE(capture_time) = %s AND is_processed = 2",
+                (today,)
+            )
+            feedback_done = cursor.fetchone()['cnt']
 
-    return jsonify({
-        'success': True,
-        'data': {
-            'history_total': total_history,
-            'today_total': today_count,
-            'pending_sign': today_pending_sign,
-            'pending_feedback': today_pending_feedback,
-            'feedback_done': today_feedback_done,
-        }
-    })
+        return jsonify({
+            'success': True,
+            'data': {
+                'history_total': history_total,
+                'today_total': today_total,
+                'pending_sign': pending_sign,
+                'pending_feedback': pending_feedback,
+                'feedback_done': feedback_done,
+            }
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+    finally:
+        conn.close()
 
 
 @app.route('/api/alerts')
 def get_alerts():
-    """获取预警列表"""
+    """预警列表：capture_records LEFT JOIN young_peoples"""
     page = request.args.get('page', 1, type=int)
     per_page = request.args.get('per_page', 20, type=int)
-    status = request.args.get('status', '')
-    alert_type = request.args.get('type', '')
     keyword = request.args.get('keyword', '')
+    status = request.args.get('status', '')
+    camera_type = request.args.get('camera_type', '')
 
-    query = AlertRecord.query
+    conn = get_db()
+    try:
+        with conn.cursor(DictCursor) as cursor:
+            where_clauses = []
+            params = []
 
-    # 筛选条件
-    if status:
-        query = query.filter(AlertRecord.status == status)
-    if alert_type:
-        query = query.filter(AlertRecord.alert_type == alert_type)
-    if keyword:
-        query = query.filter(
-            db.or_(
-                AlertRecord.person_name.contains(keyword),
-                AlertRecord.alert_id.contains(keyword)
-            )
-        )
+            if keyword:
+                where_clauses.append("(cr.person_id_card LIKE %s OR cr.camera_name LIKE %s OR cr.plate_no LIKE %s)")
+                like_kw = f"%{keyword}%"
+                params.extend([like_kw, like_kw, like_kw])
 
-    # 默认按时间倒序
-    query = query.order_by(AlertRecord.alert_time.desc())
+            if status:
+                status_map = {'待签收': '0', '待反馈': '1', '已反馈': '2', '已签收': '3'}
+                if status in status_map:
+                    where_clauses.append("cr.is_processed = %s")
+                    params.append(status_map[status])
 
-    pagination = query.paginate(page=page, per_page=per_page, error_out=False)
+            where_sql = (" WHERE " + " AND ".join(where_clauses)) if where_clauses else ""
 
-    return jsonify({
-        'success': True,
-        'data': {
-            'items': [r.to_dict() for r in pagination.items],
-            'total': pagination.total,
-            'page': page,
-            'per_page': per_page,
-            'pages': pagination.pages,
-        }
-    })
+            # 总数
+            cursor.execute(f"SELECT COUNT(*) AS cnt FROM capture_records cr{where_sql}", params)
+            total = cursor.fetchone()['cnt']
+
+            pages = max(1, (total + per_page - 1) // per_page)
+            offset = (page - 1) * per_page
+
+            # 查询数据
+            sql = f"""
+            SELECT cr.*, yp.name AS person_name
+            FROM capture_records cr
+            LEFT JOIN young_peoples yp ON cr.person_id_card = yp.id_card_number
+            {where_sql}
+            ORDER BY cr.capture_time DESC
+            LIMIT %s OFFSET %s
+            """
+            cursor.execute(sql, params + [per_page, offset])
+            rows = cursor.fetchall()
+
+            status_labels = {0: '待签收', 1: '待反馈', 2: '已反馈', 3: '已签收'}
+            items = []
+            for r in rows:
+                sim = r.get('similarity')
+                if sim is not None:
+                    sim = round(float(sim) * 100, 1) if float(sim) <= 1 else round(float(sim), 1)
+                else:
+                    sim = 0
+
+                items.append({
+                    'id': r.get('capture_id', ''),
+                    'name': r.get('person_name') or r.get('person_id_card', ''),
+                    'id_tail': (r.get('person_id_card') or '')[-4:] if r.get('person_id_card') else '****',
+                    'similarity': sim,
+                    'time': r.get('capture_time').strftime('%Y-%m-%d %H:%M:%S') if r.get('capture_time') else '',
+                    'location': r.get('camera_name', ''),
+                    'camera': r.get('camera_name', ''),
+                    'type': '车辆' if r.get('plate_no') else '人脸',
+                    'status': status_labels.get(r.get('is_processed', 0), '待签收'),
+                    'person_tag': '重点人员',
+                    'face_pic_url': r.get('face_pic_url'),
+                    'bkg_url': r.get('bkg_url'),
+                    'person_face_url': r.get('person_face_url'),
+                })
+
+        return jsonify({
+            'success': True,
+            'data': {
+                'items': items,
+                'total': total,
+                'page': page,
+                'per_page': per_page,
+                'pages': pages,
+            }
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+    finally:
+        conn.close()
 
 
-@app.route('/api/alert/<alert_id>')
-def get_alert_detail(alert_id):
-    """获取单条预警详情"""
-    record = AlertRecord.query.filter_by(alert_id=alert_id).first()
-    if not record:
-        return jsonify({'success': False, 'message': '记录不存在'}), 404
-    return jsonify({'success': True, 'data': record.to_dict()})
+# ==================== 图片代理 ====================
+
+@app.route('/proxy-pic')
+def proxy_pic():
+    """代理图片请求，解决跨域问题"""
+    url = request.args.get('url')
+    if not url:
+        return jsonify({'error': 'url is required'}), 400
+
+    headers = {
+        "User-Agent": "Mozilla/5.0",
+        "Referer": "http://71.196.10.34/"
+    }
+
+    try:
+        r = http_requests.get(url, headers=headers, stream=True, timeout=15)
+        return Response(r.iter_content(1024), content_type=r.headers.get('Content-Type', 'image/jpeg'))
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 
 # ==================== 布控管理 API ====================
 
 @app.route('/api/control/stats')
 def get_control_stats():
-    """获取布控统计数据"""
-    today = datetime.now().date()
+    """布控统计：基于 young_peoples 表"""
+    conn = get_db()
+    try:
+        with conn.cursor(DictCursor) as cursor:
+            cols = get_yp_columns(conn)
+            today = datetime.now().strftime('%Y-%m-%d')
 
-    total = ControlPerson.query.count()
-    controlling = ControlPerson.query.filter(ControlPerson.control_status == '布控中').count()
-    pending = ControlPerson.query.filter(ControlPerson.control_status == '待审批').count()
-    revoked = ControlPerson.query.filter(ControlPerson.control_status == '已撤控').count()
-    today_new = ControlPerson.query.filter(
-        db.func.date(ControlPerson.created_at) == today
-    ).count()
+            cursor.execute("SELECT COUNT(*) AS cnt FROM young_peoples")
+            total = cursor.fetchone()['cnt']
 
-    return jsonify({
-        'success': True,
-        'data': {
-            'total': total,
-            'controlling': controlling,
-            'pending': pending,
-            'revoked': revoked,
-            'today_new': today_new,
-        }
-    })
+            if 'control_status' in cols:
+                cursor.execute("SELECT COUNT(*) AS cnt FROM young_peoples WHERE control_status = '布控中' OR control_status IS NULL OR control_status = ''")
+                controlling = cursor.fetchone()['cnt']
+
+                cursor.execute("SELECT COUNT(*) AS cnt FROM young_peoples WHERE control_status = '待审批'")
+                pending = cursor.fetchone()['cnt']
+
+                cursor.execute("SELECT COUNT(*) AS cnt FROM young_peoples WHERE control_status = '已撤控'")
+                revoked = cursor.fetchone()['cnt']
+            else:
+                controlling = total
+                pending = 0
+                revoked = 0
+
+            if 'created_at' in cols:
+                cursor.execute(
+                    "SELECT COUNT(*) AS cnt FROM young_peoples WHERE DATE(created_at) = %s",
+                    (today,)
+                )
+                today_new = cursor.fetchone()['cnt']
+            else:
+                today_new = 0
+
+        return jsonify({
+            'success': True,
+            'data': {
+                'total': total,
+                'controlling': controlling,
+                'pending': pending,
+                'revoked': revoked,
+                'today_new': today_new,
+            }
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+    finally:
+        conn.close()
 
 
 @app.route('/api/controls')
 def get_controls():
-    """获取布控人员列表"""
+    """布控人员列表：基于 young_peoples 表"""
     page = request.args.get('page', 1, type=int)
     per_page = request.args.get('per_page', 20, type=int)
     library = request.args.get('library', '')
     status = request.args.get('status', '')
     keyword = request.args.get('keyword', '')
     address = request.args.get('address', '')
+    photo = request.args.get('photo', '')
 
-    query = ControlPerson.query
+    conn = get_db()
+    try:
+        with conn.cursor(DictCursor) as cursor:
+            cols = get_yp_columns(conn)
+            where_clauses = []
+            params = []
 
-    if library:
-        query = query.filter(ControlPerson.control_library == library)
-    if status:
-        query = query.filter(ControlPerson.control_status == status)
-    if keyword:
-        query = query.filter(
-            db.or_(
-                ControlPerson.name.contains(keyword),
-                ControlPerson.id_card.contains(keyword)
-            )
-        )
-    if address:
-        query = query.filter(
-            db.or_(
-                ControlPerson.household_address.contains(address),
-                ControlPerson.current_address.contains(address)
-            )
-        )
+            if library and 'control_library' in cols:
+                where_clauses.append("yp.control_library = %s")
+                params.append(library)
 
-    query = query.order_by(ControlPerson.created_at.desc())
-    pagination = query.paginate(page=page, per_page=per_page, error_out=False)
+            if status and 'control_status' in cols:
+                if status == '布控中':
+                    where_clauses.append("(yp.control_status = '布控中' OR yp.control_status IS NULL OR yp.control_status = '')")
+                else:
+                    where_clauses.append("yp.control_status = %s")
+                    params.append(status)
 
-    return jsonify({
-        'success': True,
-        'data': {
-            'items': [r.to_dict() for r in pagination.items],
-            'total': pagination.total,
-            'page': page,
-            'per_page': per_page,
-            'pages': pagination.pages,
-        }
-    })
+            if keyword:
+                name_col = 'yp.name' if 'name' in cols else 'yp.id_card_number'
+                where_clauses.append(f"({name_col} LIKE %s OR yp.id_card_number LIKE %s)")
+                like_kw = f"%{keyword}%"
+                params.extend([like_kw, like_kw])
 
+            if address and 'household_address' in cols:
+                where_clauses.append("(yp.household_address LIKE %s OR yp.current_address LIKE %s)")
+                like_addr = f"%{address}%"
+                params.extend([like_addr, like_addr])
 
-@app.route('/api/control/<control_id>')
-def get_control_detail(control_id):
-    """获取单条布控人员详情"""
-    person = ControlPerson.query.filter_by(control_id=control_id).first()
-    if not person:
-        return jsonify({'success': False, 'message': '记录不存在'}), 404
-    return jsonify({'success': True, 'data': person.to_dict()})
+            if photo == '有照片':
+                where_clauses.append("yp.person_face_url IS NOT NULL AND yp.person_face_url != '' AND yp.person_face_url != 'null'")
+            elif photo == '无照片':
+                where_clauses.append("(yp.person_face_url IS NULL OR yp.person_face_url = '' OR yp.person_face_url = 'null')")
+
+            where_sql = (" WHERE " + " AND ".join(where_clauses)) if where_clauses else ""
+
+            # 总数
+            cursor.execute(f"SELECT COUNT(*) AS cnt FROM young_peoples yp{where_sql}", params)
+            total = cursor.fetchone()['cnt']
+
+            pages = max(1, (total + per_page - 1) // per_page)
+            offset = (page - 1) * per_page
+
+            # 查询
+            order_col = 'yp.created_at' if 'created_at' in cols else 'yp.id'
+            sql = f"""
+            SELECT yp.*,
+                (SELECT MAX(cr.capture_time) FROM capture_records cr
+                 WHERE cr.person_id_card = yp.id_card_number
+                   AND cr.capture_time >= DATE_SUB(NOW(), INTERVAL 24 HOUR)
+                ) AS latest_alert_time
+            FROM young_peoples yp
+            {where_sql}
+            ORDER BY {order_col} DESC
+            LIMIT %s OFFSET %s
+            """
+            cursor.execute(sql, params + [per_page, offset])
+            rows = cursor.fetchall()
+
+            items = []
+            for r in rows:
+                control_status = safe_get(r, 'control_status', '布控中')
+                if control_status in (None, '', 'null', '--'):
+                    control_status = '布控中'
+
+                items.append({
+                    'control_id': safe_get(r, 'id_card_number', ''),
+                    'name': safe_get(r, 'name', safe_get(r, 'id_card_number', '--')),
+                    'id_card': safe_get(r, 'id_card_number', '--'),
+                    'gender': safe_get(r, 'gender', '--'),
+                    'age': r.get('age'),
+                    'ethnicity': safe_get(r, 'ethnicity', '--'),
+                    'control_library': safe_get(r, 'control_library', '重点人员库'),
+                    'control_status': control_status,
+                    'latest_alert_time': r.get('latest_alert_time').strftime('%Y-%m-%d %H:%M') if r.get('latest_alert_time') else '--',
+                    'sub_bureau': safe_get(r, 'sub_bureau', '--'),
+                    'police_station': safe_get(r, 'police_station', '--'),
+                    'community': safe_get(r, 'community', '--'),
+                    'alias': safe_get(r, 'alias', '--'),
+                    'phone': safe_get(r, 'phone', '--'),
+                    'household_address': safe_get(r, 'household_address', '--'),
+                    'current_address': safe_get(r, 'current_address', '--'),
+                    'photo_url': r.get('person_face_url'),
+                })
+
+        return jsonify({
+            'success': True,
+            'data': {
+                'items': items,
+                'total': total,
+                'page': page,
+                'per_page': per_page,
+                'pages': pages,
+            }
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+    finally:
+        conn.close()
 
 
 @app.route('/api/control/batch_revoke', methods=['POST'])
@@ -518,21 +404,23 @@ def batch_revoke_control():
     if not ids:
         return jsonify({'success': False, 'message': '未选择记录'}), 400
 
-    updated = 0
-    for control_id in ids:
-        person = ControlPerson.query.filter_by(control_id=control_id).first()
-        if person and person.control_status != '已撤控':
-            person.control_status = '已撤控'
-            record = ControlRecord(
-                control_person_id=person.id,
-                action='撤控',
-                reason=reason
+    conn = get_db()
+    try:
+        with conn.cursor() as cursor:
+            placeholders = ','.join(['%s'] * len(ids))
+            cursor.execute(
+                f"UPDATE young_peoples SET control_status = '已撤控' WHERE id_card_number IN ({placeholders}) AND (control_status != '已撤控' OR control_status IS NULL)",
+                ids
             )
-            db.session.add(record)
-            updated += 1
+            updated = cursor.rowcount
+            conn.commit()
 
-    db.session.commit()
-    return jsonify({'success': True, 'message': f'已成功撤控 {updated} 条记录', 'data': {'updated': updated}})
+        return jsonify({'success': True, 'message': f'已成功撤控 {updated} 条记录', 'data': {'updated': updated}})
+    except Exception as e:
+        conn.rollback()
+        return jsonify({'success': False, 'message': str(e)}), 500
+    finally:
+        conn.close()
 
 
 @app.route('/api/control/batch_delete', methods=['POST'])
@@ -544,21 +432,23 @@ def batch_delete_control():
     if not ids:
         return jsonify({'success': False, 'message': '未选择记录'}), 400
 
-    deleted = 0
-    for control_id in ids:
-        person = ControlPerson.query.filter_by(control_id=control_id).first()
-        if person:
-            record = ControlRecord(
-                control_person_id=person.id,
-                action='删除',
-                reason='批量删除'
+    conn = get_db()
+    try:
+        with conn.cursor() as cursor:
+            placeholders = ','.join(['%s'] * len(ids))
+            cursor.execute(
+                f"DELETE FROM young_peoples WHERE id_card_number IN ({placeholders})",
+                ids
             )
-            db.session.add(record)
-            db.session.delete(person)
-            deleted += 1
+            deleted = cursor.rowcount
+            conn.commit()
 
-    db.session.commit()
-    return jsonify({'success': True, 'message': f'已成功删除 {deleted} 条记录', 'data': {'deleted': deleted}})
+        return jsonify({'success': True, 'message': f'已成功删除 {deleted} 条记录', 'data': {'deleted': deleted}})
+    except Exception as e:
+        conn.rollback()
+        return jsonify({'success': False, 'message': str(e)}), 500
+    finally:
+        conn.close()
 
 
 @app.route('/api/control/import', methods=['POST'])
@@ -570,129 +460,171 @@ def import_controls():
     if not items:
         return jsonify({'success': False, 'message': '无数据'}), 400
 
-    imported = 0
-    for item in items:
-        person = ControlPerson(
-            control_id=item.get('control_id') or f"BK{datetime.now().strftime('%Y%m%d%H%M%S')}{random.randint(1000,9999)}",
-            name=item.get('name', ''),
-            id_card=item.get('id_card', ''),
-            gender=item.get('gender', ''),
-            age=item.get('age'),
-            ethnicity=item.get('ethnicity', ''),
-            control_library=item.get('control_library', '重点人员库'),
-            control_status=item.get('control_status', '布控中'),
-            sub_bureau=item.get('sub_bureau', ''),
-            police_station=item.get('police_station', ''),
-            community=item.get('community', ''),
-            alias=item.get('alias', ''),
-            phone=item.get('phone', ''),
-            household_address=item.get('household_address', ''),
-            current_address=item.get('current_address', ''),
-        )
-        db.session.add(person)
-        imported += 1
+    conn = get_db()
+    try:
+        cols = get_yp_columns(conn)
+        imported = 0
+        with conn.cursor() as cursor:
+            for item in items:
+                # 只插入表中实际存在的列
+                insert_cols = ['id_card_number']
+                insert_vals = [item.get('id_card', '')]
+                updates = []
 
-    db.session.commit()
-    return jsonify({'success': True, 'message': f'成功导入 {imported} 条记录', 'data': {'imported': imported}})
+                optional_cols = [
+                    ('name', 'name', ''), ('gender', 'gender', ''), ('age', 'age', None),
+                    ('ethnicity', 'ethnicity', ''), ('control_library', 'control_library', '重点人员库'),
+                    ('control_status', 'control_status', '布控中'), ('sub_bureau', 'sub_bureau', ''),
+                    ('police_station', 'police_station', ''), ('community', 'community', ''),
+                    ('alias', 'alias', ''), ('phone', 'phone', ''),
+                    ('household_address', 'household_address', ''), ('current_address', 'current_address', ''),
+                    ('person_face_url', 'photo_url', None),
+                ]
+
+                for db_col, item_key, default in optional_cols:
+                    if db_col in cols:
+                        insert_cols.append(db_col)
+                        insert_vals.append(item.get(item_key, default))
+                        if db_col not in ('id_card_number',):
+                            updates.append(f"{db_col} = VALUES({db_col})")
+
+                placeholders = ','.join(['%s'] * len(insert_cols))
+                col_names = ','.join(insert_cols)
+                update_sql = ','.join(updates) if updates else 'name = VALUES(name)'
+
+                cursor.execute(
+                    f"INSERT INTO young_peoples ({col_names}) VALUES ({placeholders}) ON DUPLICATE KEY UPDATE {update_sql}",
+                    insert_vals
+                )
+                imported += 1
+            conn.commit()
+
+        return jsonify({'success': True, 'message': f'成功导入 {imported} 条记录', 'data': {'imported': imported}})
+    except Exception as e:
+        conn.rollback()
+        return jsonify({'success': False, 'message': str(e)}), 500
+    finally:
+        conn.close()
 
 
 @app.route('/api/control/today')
 def get_today_controls():
-    """今日预警布控人员（近24小时有预警的）"""
-    now = datetime.now()
-    yesterday = now - timedelta(hours=24)
+    """今日预警布控人员"""
+    conn = get_db()
+    try:
+        with conn.cursor(DictCursor) as cursor:
+            cursor.execute("""
+                SELECT yp.*,
+                    (SELECT MAX(cr.capture_time) FROM capture_records cr
+                     WHERE cr.person_id_card = yp.id_card_number
+                       AND cr.capture_time >= DATE_SUB(NOW(), INTERVAL 24 HOUR)
+                    ) AS latest_alert_time
+                FROM young_peoples yp
+                WHERE EXISTS (
+                    SELECT 1 FROM capture_records cr
+                    WHERE cr.person_id_card = yp.id_card_number
+                      AND cr.capture_time >= DATE_SUB(NOW(), INTERVAL 24 HOUR)
+                )
+                ORDER BY latest_alert_time DESC
+            """)
+            rows = cursor.fetchall()
 
-    persons = ControlPerson.query.filter(
-        ControlPerson.latest_alert_time >= yesterday
-    ).order_by(ControlPerson.latest_alert_time.desc()).all()
+            items = []
+            for r in rows:
+                items.append({
+                    'control_id': safe_get(r, 'id_card_number', ''),
+                    'name': safe_get(r, 'name', safe_get(r, 'id_card_number', '--')),
+                    'id_card': safe_get(r, 'id_card_number', '--'),
+                    'gender': safe_get(r, 'gender', '--'),
+                    'age': r.get('age'),
+                    'ethnicity': safe_get(r, 'ethnicity', '--'),
+                    'control_library': safe_get(r, 'control_library', '重点人员库'),
+                    'control_status': safe_get(r, 'control_status', '布控中'),
+                    'latest_alert_time': r.get('latest_alert_time').strftime('%Y-%m-%d %H:%M') if r.get('latest_alert_time') else '--',
+                    'sub_bureau': safe_get(r, 'sub_bureau', '--'),
+                    'police_station': safe_get(r, 'police_station', '--'),
+                    'community': safe_get(r, 'community', '--'),
+                    'alias': safe_get(r, 'alias', '--'),
+                    'phone': safe_get(r, 'phone', '--'),
+                    'household_address': safe_get(r, 'household_address', '--'),
+                    'current_address': safe_get(r, 'current_address', '--'),
+                    'photo_url': r.get('person_face_url'),
+                })
 
-    return jsonify({
-        'success': True,
-        'data': [p.to_dict() for p in persons]
-    })
+        return jsonify({
+            'success': True,
+            'data': items
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+    finally:
+        conn.close()
 
 
 # ==================== 统计报表 API ====================
 
 @app.route('/api/report/stats')
 def get_report_stats():
-    """按分局统计报表数据"""
-    # 区域到分局的映射
-    district_map = {
-        '城中区': '城中分局',
-        '鱼峰区': '鱼峰分局',
-        '柳南区': '柳南分局',
-        '柳北区': '柳北分局',
-        '柳江区': '柳江分局',
-    }
+    """按分局统计报表"""
+    conn = get_db()
+    try:
+        with conn.cursor(DictCursor) as cursor:
+            # 按 sub_bureau 聚合 capture_records
+            cursor.execute("""
+                SELECT yp.sub_bureau,
+                       COUNT(cr.id) AS alert_count,
+                       SUM(CASE WHEN cr.is_processed >= 2 THEN 1 ELSE 0 END) AS signed_count
+                FROM capture_records cr
+                LEFT JOIN young_peoples yp ON cr.person_id_card = yp.id_card_number
+                WHERE yp.sub_bureau IS NOT NULL AND yp.sub_bureau != ''
+                GROUP BY yp.sub_bureau
+                ORDER BY alert_count DESC
+            """)
+            rows = cursor.fetchall()
 
-    # 查询所有预警记录
-    all_records = AlertRecord.query.all()
+            items = []
+            for i, r in enumerate(rows):
+                total = r['alert_count'] or 0
+                signed = r['signed_count'] or 0
+                rate = round(signed / total * 100, 1) if total > 0 else 0
+                items.append({
+                    'name': r['sub_bureau'],
+                    'alerts': total,
+                    'staff': max(1, int(total * random.uniform(0.02, 0.08))),
+                    'rate': rate,
+                    'rank': i + 1,
+                })
 
-    # 按分局聚合统计
-    stats = {}
-    for record in all_records:
-        # 从 location 提取区域
-        district = None
-        for d in district_map:
-            if d in (record.location or ''):
-                district = d
-                break
-        if not district:
-            continue
+            # 全局汇总
+            cursor.execute("SELECT COUNT(*) AS cnt FROM capture_records")
+            total_alerts = cursor.fetchone()['cnt']
 
-        bureau = district_map[district]
-        if bureau not in stats:
-            stats[bureau] = {'alerts': 0, 'signed': 0, 'dates': set()}
-        stats[bureau]['alerts'] += 1
-        if record.status == '已签收':
-            stats[bureau]['signed'] += 1
-        if record.alert_time:
-            stats[bureau]['dates'].add(record.alert_time.date())
+            cursor.execute("SELECT COUNT(*) AS cnt FROM capture_records WHERE is_processed >= 2")
+            total_signed = cursor.fetchone()['cnt']
 
-    # 构建返回列表
-    items = []
-    for bureau, data in stats.items():
-        total = data['alerts']
-        signed = data['signed']
-        rate = round(signed / total * 100, 1) if total > 0 else 0
-        # 登录人员数模拟：基于不同日期的预警数，取 5%~15%
-        staff = max(1, int(len(data['dates']) * random.uniform(0.05, 0.15)))
-        items.append({
-            'name': bureau,
-            'alerts': total,
-            'staff': staff,
-            'rate': rate,
+            total_rate = round(total_signed / total_alerts * 100, 1) if total_alerts > 0 else 0
+            total_staff = sum(item['staff'] for item in items)
+
+            summary = {
+                'name': '柳州市公安局',
+                'alerts': total_alerts,
+                'staff': total_staff,
+                'rate': total_rate,
+                'rank': 1,
+            }
+
+        return jsonify({
+            'success': True,
+            'data': {
+                'summary': summary,
+                'items': items,
+            }
         })
-
-    # 按预警数量降序排序并添加排名
-    items.sort(key=lambda x: x['alerts'], reverse=True)
-    for i, item in enumerate(items):
-        item['rank'] = i + 1
-
-    # 全局汇总
-    total_alerts = sum(item['alerts'] for item in items)
-    total_signed = sum(int(item['alerts'] * item['rate'] / 100) for item in items)
-    total_rate = round(total_signed / total_alerts * 100, 1) if total_alerts > 0 else 0
-    total_staff = sum(item['staff'] for item in items)
-
-    summary = {
-        'name': '柳州市公安局',
-        'alerts': total_alerts,
-        'staff': total_staff,
-        'rate': total_rate,
-        'rank': 1,
-    }
-
-    return jsonify({
-        'success': True,
-        'data': {
-            'summary': summary,
-            'items': items,
-        }
-    })
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+    finally:
+        conn.close()
 
 
 if __name__ == '__main__':
-    init_db()
     app.run(host='0.0.0.0', port=5050, debug=True)
