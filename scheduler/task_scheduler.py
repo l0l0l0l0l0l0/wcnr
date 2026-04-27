@@ -8,14 +8,8 @@ import threading
 import time
 import logging
 import traceback
-from datetime import datetime
 
-from config import (
-    SCHEDULER_ENABLED,
-    SYNC_CAPTURE_INTERVAL,
-    CLUSTER_INTERVAL,
-    DRIVER_CHECK_INTERVAL,
-)
+from app.config import get_settings
 
 logger = logging.getLogger(__name__)
 
@@ -70,7 +64,8 @@ class TaskScheduler:
 
     def start(self):
         """启动调度器"""
-        if not SCHEDULER_ENABLED:
+        settings = get_settings()
+        if not settings.scheduler_enabled:
             logger.info("[调度器] 调度器已禁用，跳过启动")
             return
 
@@ -123,54 +118,3 @@ class TaskScheduler:
                 for name, t in self._tasks.items()
             }
         }
-
-
-# ==================== 任务定义 ====================
-
-def _capture_sync_task():
-    """抓拍记录同步任务"""
-    try:
-        from find_all_young_pk_insert_into_db import main as capture_sync_main
-        capture_sync_main()
-    except Exception as e:
-        logger.error(f"抓拍同步任务异常: {e}")
-        raise
-
-
-def _companion_cluster_task():
-    """同行人聚类任务"""
-    try:
-        from choose_peoples_together_insert_into_db import run_companion_clustering
-        run_companion_clustering()
-    except Exception as e:
-        logger.error(f"同行人聚类任务异常: {e}")
-        raise
-
-
-# 全局调度器实例
-scheduler = TaskScheduler()
-
-
-def init_scheduler():
-    """初始化并注册默认任务"""
-    if SYNC_CAPTURE_INTERVAL > 0:
-        scheduler.register('capture_sync', _capture_sync_task, SYNC_CAPTURE_INTERVAL)
-
-    if CLUSTER_INTERVAL > 0:
-        scheduler.register('companion_cluster', _companion_cluster_task, CLUSTER_INTERVAL)
-
-    return scheduler
-
-
-if __name__ == '__main__':
-    logging.basicConfig(
-        level=logging.INFO,
-        format='%(asctime)s - %(levelname)s - %(message)s'
-    )
-    init_scheduler()
-    scheduler.start()
-    try:
-        while True:
-            time.sleep(1)
-    except KeyboardInterrupt:
-        scheduler.stop()

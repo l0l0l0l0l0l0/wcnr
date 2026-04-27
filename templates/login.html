@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>登录 - 重点人管控系统</title>
+  <link rel="stylesheet" href="/static/css/font-awesome.min.css">
+  <style>
+    :root {
+      --gov-blue: #1a3a6b;
+      --gov-blue-light: #2563eb;
+      --gov-blue-dark: #0f2444;
+      --border: #d1d5db;
+      --text: #1f2937;
+      --text-secondary: #6b7280;
+      --radius: 8px;
+      --shadow: 0 4px 24px rgba(0,0,0,0.10);
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, var(--gov-blue-dark) 0%, var(--gov-blue) 50%, #1e40af 100%);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    }
+    .login-card {
+      width: 400px;
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: var(--shadow);
+      padding: 48px 40px 40px;
+      text-align: center;
+    }
+    .login-logo {
+      width: 56px;
+      height: 56px;
+      margin: 0 auto 16px;
+      background: linear-gradient(135deg, var(--gov-blue), var(--gov-blue-light));
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .login-logo i { font-size: 28px; color: #fff; }
+    .login-title {
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--gov-blue);
+      margin-bottom: 8px;
+    }
+    .login-subtitle {
+      font-size: 13px;
+      color: var(--text-secondary);
+      margin-bottom: 32px;
+    }
+    .form-group {
+      position: relative;
+      margin-bottom: 20px;
+      text-align: left;
+    }
+    .form-group label {
+      display: block;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-secondary);
+      margin-bottom: 6px;
+    }
+    .form-group input {
+      width: 100%;
+      height: 44px;
+      padding: 0 14px 0 40px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      font-size: 14px;
+      color: var(--text);
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .form-group input:focus {
+      border-color: var(--gov-blue-light);
+      box-shadow: 0 0 0 3px rgba(37,99,235,0.12);
+    }
+    .form-group .input-icon {
+      position: absolute;
+      left: 14px;
+      bottom: 13px;
+      color: #9ca3af;
+      font-size: 14px;
+    }
+    .login-btn {
+      width: 100%;
+      height: 44px;
+      background: linear-gradient(135deg, var(--gov-blue), var(--gov-blue-light));
+      color: #fff;
+      border: none;
+      border-radius: var(--radius);
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.2s, transform 0.1s;
+      margin-top: 8px;
+    }
+    .login-btn:hover { opacity: 0.92; }
+    .login-btn:active { transform: scale(0.98); }
+    .login-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+    .error-msg {
+      display: none;
+      margin-top: 16px;
+      padding: 10px 14px;
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      border-radius: var(--radius);
+      color: #dc2626;
+      font-size: 13px;
+      text-align: left;
+    }
+    .error-msg i { margin-right: 6px; }
+  </style>
+</head>
+<body>
+  <div class="login-card">
+    <div class="login-logo"><i class="fas fa-shield-halved"></i></div>
+    <div class="login-title">重点人管控系统</div>
+    <div class="login-subtitle">请使用账号密码登录</div>
+    <form id="loginForm" autocomplete="off">
+      <div class="form-group">
+        <label>用户名</label>
+        <i class="fas fa-user input-icon"></i>
+        <input type="text" id="username" placeholder="请输入用户名" required autofocus>
+      </div>
+      <div class="form-group">
+        <label>密码</label>
+        <i class="fas fa-lock input-icon"></i>
+        <input type="password" id="password" placeholder="请输入密码" required>
+      </div>
+      <button type="submit" class="login-btn" id="loginBtn">登 录</button>
+    </form>
+    <div class="error-msg" id="errorMsg"><i class="fas fa-circle-exclamation"></i><span id="errorText"></span></div>
+  </div>
+
+  <script>
+    // 已登录则跳转主页
+    if (localStorage.getItem('access_token')) {
+      window.location.href = '/';
+    }
+
+    document.getElementById('loginForm').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      const username = document.getElementById('username').value.trim();
+      const password = document.getElementById('password').value;
+      const errorMsg = document.getElementById('errorMsg');
+      const errorText = document.getElementById('errorText');
+      const btn = document.getElementById('loginBtn');
+
+      if (!username || !password) {
+        errorText.textContent = '请输入用户名和密码';
+        errorMsg.style.display = 'block';
+        return;
+      }
+
+      btn.disabled = true;
+      btn.textContent = '登录中...';
+      errorMsg.style.display = 'none';
+
+      try {
+        const res = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password })
+        });
+        const data = await res.json();
+
+        if (res.ok && data.access_token) {
+          localStorage.setItem('access_token', data.access_token);
+          // 获取用户信息
+          try {
+            const meRes = await fetch('/api/users/me', {
+              headers: { 'Authorization': `Bearer ${data.access_token}` }
+            });
+            if (meRes.ok) {
+              const meData = await meRes.json();
+              localStorage.setItem('user_info', JSON.stringify(meData.data));
+            }
+          } catch { /* ignore */ }
+          window.location.href = '/';
+        } else {
+          errorText.textContent = data.message || data.detail || '用户名或密码错误';
+          errorMsg.style.display = 'block';
+        }
+      } catch (err) {
+        errorText.textContent = '网络错误，请重试';
+        errorMsg.style.display = 'block';
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '登 录';
+      }
+    });
+  </script>
+</body>
+</html>

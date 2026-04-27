@@ -21,3 +21,10 @@ venv/
 
 # Archives
 *.tar.gz
+
+# Old Flask backup
+_old_flask/
+
+# Offline deps cache
+offline_deps/pip_cache/
+offline_deps/*.zip

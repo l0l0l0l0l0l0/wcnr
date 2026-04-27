@@ -427,3 +427,23 @@ CREATE TABLE IF NOT EXISTS tmp_cameras (
     statusName          VARCHAR(50) DEFAULT NULL,
     INDEX idx_camera_index_code (cameraIndexCode)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='临时摄像头表';
+
+
+-- ==================== 用户管理表 ====================
+CREATE TABLE IF NOT EXISTS users (
+    id                  INT AUTO_INCREMENT PRIMARY KEY COMMENT 'ID',
+    username            VARCHAR(100) NOT NULL UNIQUE COMMENT '用户名',
+    password            VARCHAR(255) NOT NULL COMMENT '密码(bcrypt哈希)',
+    real_name           VARCHAR(100) DEFAULT NULL COMMENT '真实姓名',
+    role                VARCHAR(50) DEFAULT 'operator' COMMENT '角色: admin/operator',
+    police_station      VARCHAR(255) DEFAULT NULL COMMENT '所属派出所',
+    is_active           TINYINT DEFAULT 1 COMMENT '是否启用: 0停用 1启用',
+    created_at          DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    updated_at          DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    INDEX idx_username (username),
+    INDEX idx_role (role)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='用户管理表';
+
+-- 默认管理员账户 (密码: admin123)
+INSERT INTO users (username, password, real_name, role) VALUES
+('admin', '$2b$12$uhELeUY1sITxukkldaAqJu43L5sKXWhHnv27vy4rdfGzRYHUZKNXu', '系统管理员', 'admin');
