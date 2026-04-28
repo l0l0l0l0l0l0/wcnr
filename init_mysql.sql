@@ -447,3 +447,129 @@ CREATE TABLE IF NOT EXISTS users (
 -- 默认管理员账户 (密码: admin123)
 INSERT INTO users (username, password, real_name, role) VALUES
 ('admin', '$2b$12$uhELeUY1sITxukkldaAqJu43L5sKXWhHnv27vy4rdfGzRYHUZKNXu', '系统管理员', 'admin');
+
+
+-- ==================== 人口系统导入数据表 ====================
+CREATE TABLE IF NOT EXISTS population_info (
+    id                  INT AUTO_INCREMENT PRIMARY KEY COMMENT 'ID',
+    id_card_number      VARCHAR(18) NOT NULL COMMENT '身份证号',
+    name                VARCHAR(255) DEFAULT NULL COMMENT '姓名',
+    gender              VARCHAR(10) DEFAULT NULL COMMENT '性别',
+    age                 VARCHAR(10) DEFAULT NULL COMMENT '年龄',
+    address             VARCHAR(500) DEFAULT NULL COMMENT '住址',
+    contact             VARCHAR(255) DEFAULT NULL COMMENT '联系方式',
+    import_log_id       INT DEFAULT NULL COMMENT '来源导入记录ID',
+    promoted            TINYINT DEFAULT 0 COMMENT '是否已纳入布控: 0否 1是',
+    promoted_at         DATETIME DEFAULT NULL COMMENT '纳入布控时间',
+    created_at          TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '导入时间',
+    updated_at          TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    UNIQUE KEY uk_id_card_number (id_card_number),
+    INDEX idx_name (name),
+    INDEX idx_promoted (promoted),
+    INDEX idx_import_log_id (import_log_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='人口系统导入数据表';
+
+
+-- ==================== 警综系统案件数据表 ====================
+CREATE TABLE IF NOT EXISTS cases (
+    id                  INT AUTO_INCREMENT PRIMARY KEY COMMENT 'ID',
+    case_number         VARCHAR(100) NOT NULL COMMENT '案件编号',
+    case_name           VARCHAR(500) DEFAULT NULL COMMENT '案件名称',
+    case_type           VARCHAR(100) DEFAULT NULL COMMENT '案件类型',
+    incident_time       DATETIME DEFAULT NULL COMMENT '案发时间',
+    incident_location   VARCHAR(500) DEFAULT NULL COMMENT '案发地点',
+    description         TEXT DEFAULT NULL COMMENT '案件描述(扩展字段)',
+    import_log_id       INT DEFAULT NULL COMMENT '来源导入记录ID',
+    created_at          TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '导入时间',
+    updated_at          TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    UNIQUE KEY uk_case_number (case_number),
+    INDEX idx_case_type (case_type),
+    INDEX idx_incident_time (incident_time),
+    INDEX idx_import_log_id (import_log_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='警综系统案件数据表';
+
+
+-- ==================== 案件-涉案人员关联表 ====================
+CREATE TABLE IF NOT EXISTS case_persons (
+    id                  INT AUTO_INCREMENT PRIMARY KEY COMMENT 'ID',
+    case_id             INT NOT NULL COMMENT '案件ID',
+    id_card_number      VARCHAR(18) NOT NULL COMMENT '涉案人员身份证号',
+    person_name         VARCHAR(255) DEFAULT NULL COMMENT '涉案人员姓名(冗余)',
+    person_source       VARCHAR(20) DEFAULT 'unknown' COMMENT '人员来源: young_peoples/population_info/unknown',
+    role_in_case        VARCHAR(100) DEFAULT NULL COMMENT '涉案角色(嫌疑人/受害人/证人等)',
+    created_at          TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    UNIQUE KEY uk_case_person (case_id, id_card_number),
+    INDEX idx_id_card_number (id_card_number),
+    INDEX idx_person_source (person_source),
+    FOREIGN KEY (case_id) REFERENCES cases(id) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='案件-涉案人员关联表';
+
+
+-- ==================== 数据导入日志表 ====================
+CREATE TABLE IF NOT EXISTS data_import_logs (
+    id                  INT AUTO_INCREMENT PRIMARY KEY COMMENT 'ID',
+    source_system       VARCHAR(50) NOT NULL COMMENT '来源系统: jingzong/renkou',
+    file_name           VARCHAR(500) NOT NULL COMMENT '原始文件名',
+    file_size           INT DEFAULT NULL COMMENT '文件大小(字节)',
+    record_count        INT DEFAULT 0 COMMENT '导入记录数',
+    success_count       INT DEFAULT 0 COMMENT '成功记录数',
+    fail_count          INT DEFAULT 0 COMMENT '失败记录数',
+    duplicate_count     INT DEFAULT 0 COMMENT '重复跳过记录数',
+    status              VARCHAR(20) DEFAULT 'pending' COMMENT '状态: pending/processing/completed/failed',
+    error_message       TEXT DEFAULT NULL COMMENT '错误信息',
+    operator_id         INT DEFAULT NULL COMMENT '操作人用户ID',
+    operator_name       VARCHAR(100) DEFAULT NULL COMMENT '操作人姓名',
+    started_at          DATETIME DEFAULT NULL COMMENT '开始处理时间',
+    completed_at        DATETIME DEFAULT NULL COMMENT '完成处理时间',
+    created_at          TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    INDEX idx_source_system (source_system),
+    INDEX idx_status (status),
+    INDEX idx_operator_id (operator_id),
+    INDEX idx_created_at (created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='数据导入日志表';
+
+
+-- ==================== 人口数据导入暂存表 ====================
+CREATE TABLE IF NOT EXISTS population_staging (
+    id                  INT AUTO_INCREMENT PRIMARY KEY COMMENT 'ID',
+    import_log_id       INT DEFAULT NULL COMMENT '关联导入记录ID',
+    `row_number`        INT DEFAULT NULL COMMENT '原始行号',
+    id_card_number      VARCHAR(18) DEFAULT NULL COMMENT '身份证号',
+    name                VARCHAR(255) DEFAULT NULL COMMENT '姓名',
+    gender              VARCHAR(10) DEFAULT NULL COMMENT '性别',
+    age                 VARCHAR(10) DEFAULT NULL COMMENT '年龄',
+    address             VARCHAR(500) DEFAULT NULL COMMENT '住址',
+    contact             VARCHAR(255) DEFAULT NULL COMMENT '联系方式',
+    is_valid            TINYINT DEFAULT 1 COMMENT '校验是否通过: 0否 1是',
+    validation_error    VARCHAR(500) DEFAULT NULL COMMENT '校验错误信息',
+    is_duplicate        TINYINT DEFAULT 0 COMMENT '是否与已有数据重复: 0否 1是',
+    created_at          TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    INDEX idx_import_log_id (import_log_id),
+    INDEX idx_id_card_number (id_card_number)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='人口数据导入暂存表';
+
+
+-- ==================== 案件数据导入暂存表 ====================
+CREATE TABLE IF NOT EXISTS case_staging (
+    id                  INT AUTO_INCREMENT PRIMARY KEY COMMENT 'ID',
+    import_log_id       INT DEFAULT NULL COMMENT '关联导入记录ID',
+    `row_number`        INT DEFAULT NULL COMMENT '原始行号',
+    case_number         VARCHAR(100) DEFAULT NULL COMMENT '案件编号',
+    case_name           VARCHAR(500) DEFAULT NULL COMMENT '案件名称',
+    case_type           VARCHAR(100) DEFAULT NULL COMMENT '案件类型',
+    incident_time_str   VARCHAR(50) DEFAULT NULL COMMENT '案发时间(原始字符串)',
+    incident_location   VARCHAR(500) DEFAULT NULL COMMENT '案发地点',
+    involved_persons    TEXT DEFAULT NULL COMMENT '涉案人员(原始文本,逗号分隔)',
+    is_valid            TINYINT DEFAULT 1 COMMENT '校验是否通过: 0否 1是',
+    validation_error    VARCHAR(500) DEFAULT NULL COMMENT '校验错误信息',
+    is_duplicate        TINYINT DEFAULT 0 COMMENT '是否与已有数据重复: 0否 1是',
+    created_at          TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    INDEX idx_import_log_id (import_log_id),
+    INDEX idx_case_number (case_number)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='案件数据导入暂存表';
+
+
+-- ==================== 布控人员表增加数据来源字段 ====================
+ALTER TABLE young_peoples
+    ADD COLUMN IF NOT EXISTS data_source VARCHAR(50) DEFAULT 'manual' COMMENT '数据来源: manual/jingzong/renkou/other',
+    ADD COLUMN IF NOT EXISTS source_import_log_id INT DEFAULT NULL COMMENT '来源导入记录ID';
