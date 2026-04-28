@@ -25,6 +25,9 @@ venv/
 # Old Flask backup
 _old_flask/
 
+# Environment variables
+.env
+
 # Offline deps cache
 offline_deps/pip_cache/
 offline_deps/*.zip
