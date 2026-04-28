@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-页面路由 — 主页、线索页
+页面路由 — 主页、布控管理、统计报表、线索页
 """
 
 from fastapi import APIRouter
@@ -14,12 +14,17 @@ TEMPLATES_DIR = Path(__file__).parent.parent / "templates"
 
 @router.get("/", response_class=HTMLResponse)
 def index():
-    return FileResponse(TEMPLATES_DIR / "gov_monitor_v2.html")
+    return FileResponse(TEMPLATES_DIR / "alert.html")
 
 
-@router.get("/v2", response_class=HTMLResponse)
-def index_v2():
-    return FileResponse(TEMPLATES_DIR / "gov_monitor_v2.html")
+@router.get("/control", response_class=HTMLResponse)
+def control_page():
+    return FileResponse(TEMPLATES_DIR / "control.html")
+
+
+@router.get("/report", response_class=HTMLResponse)
+def report_page():
+    return FileResponse(TEMPLATES_DIR / "report.html")
 
 
 @router.get("/login", response_class=HTMLResponse)

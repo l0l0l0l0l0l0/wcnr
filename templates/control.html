@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>重点人管控系统 - 布控管理</title>
+  <link rel="stylesheet" href="/static/css/font-awesome.min.css">
+  <link rel="stylesheet" href="/static/css/shared.css">
+  <link rel="stylesheet" href="/static/css/control.css">
+  <script src="/static/js/auth.js"></script>
+</head>
+<body data-page="control">
+
+  <header class="header">
+    <div class="header-left">
+      <div class="logo">
+        <div class="logo-icon"><img src="/static/img/1.png" alt="logo"></div>
+        <div class="logo-text">重点人管控</div>
+      </div>
+      <nav class="nav-menu" id="topNav">
+        <a class="nav-item active" data-nav="control" href="/control"><i class="fas fa-bullhorn"></i>布控管理</a>
+        <a class="nav-item" data-nav="alert" href="/"><i class="fas fa-star" style="color:#facc15;"></i>预警中心</a>
+        <a class="nav-item" data-nav="report" href="/report"><i class="fas fa-chart-bar"></i>统计报表</a>
+        <a class="nav-item" id="navUsers" href="/users" style="display:none"><i class="fas fa-users-cog"></i>用户管理</a>
+      </nav>
+    </div>
+    <div class="header-right">
+      <div class="alert-badge">
+        <i class="fas fa-bell" style="font-size:11px;"></i>
+        <span>预警</span>
+      </div>
+      <div class="header-stat"><i class="fas fa-chart-bar" style="font-size:11px; color:rgba(255,255,255,0.6); margin-right:4px;"></i>今日总访问量: <span>125</span></div>
+      <div class="header-stat">今日登录人数: <span>43</span></div>
+      <div class="header-stat">在线人数: <span>28</span></div>
+      <div class="user-menu" id="userMenu" style="position:relative;">
+        <div class="user-avatar" onclick="toggleUserDropdown()"><i class="fas fa-user"></i></div>
+        <div class="user-dropdown" id="userDropdown" style="display:none;position:absolute;right:0;top:44px;background:var(--white);border-radius:var(--radius);box-shadow:0 8px 24px rgba(0,0,0,0.12);min-width:180px;border:1px solid var(--border-light);z-index:1001;">
+          <div style="padding:12px 16px;display:flex;flex-direction:column;gap:4px;">
+            <span id="dropdownUsername" style="font-weight:600;color:var(--text);font-size:14px;">--</span>
+            <span id="dropdownRole" style="font-size:11px;color:var(--gov-blue-light);font-weight:500;">--</span>
+          </div>
+          <div style="height:1px;background:var(--border-light);"></div>
+          <div onclick="Auth.logout()" style="display:flex;align-items:center;gap:8px;padding:10px 16px;color:var(--text-secondary);cursor:pointer;font-size:13px;"><i class="fas fa-sign-out-alt"></i>退出登录</div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <div class="main">
+
+    <!-- 统计条 -->
+    <div class="panel stats-side">
+      <div class="stats-title"><i class="fas fa-shield-halved"></i>布控概览</div>
+      <div class="stats-compact-wrap" id="controlStatsWrap">
+        <div class="stat-compact">
+          <div class="stat-compact-icon blue"><i class="fas fa-users"></i></div>
+          <div class="stat-compact-info">
+            <div class="stat-compact-value blue" data-count="0">0</div>
+            <div class="stat-compact-label">全部布控</div>
+          </div>
+        </div>
+        <div class="stat-compact">
+          <div class="stat-compact-icon green"><i class="fas fa-shield-halved"></i></div>
+          <div class="stat-compact-info">
+            <div class="stat-compact-value green" data-count="0">0</div>
+            <div class="stat-compact-label">布控中</div>
+          </div>
+        </div>
+        <div class="stat-compact">
+          <div class="stat-compact-icon orange"><i class="fas fa-clock"></i></div>
+          <div class="stat-compact-info">
+            <div class="stat-compact-value orange" data-count="0">0</div>
+            <div class="stat-compact-label">待审批</div>
+          </div>
+        </div>
+        <div class="stat-compact">
+          <div class="stat-compact-icon purple"><i class="fas fa-ban"></i></div>
+          <div class="stat-compact-info">
+            <div class="stat-compact-value purple" data-count="0">0</div>
+            <div class="stat-compact-label">已撤控</div>
+          </div>
+        </div>
+        <div class="stat-compact">
+          <div class="stat-compact-icon red"><i class="fas fa-bell"></i></div>
+          <div class="stat-compact-info">
+            <div class="stat-compact-value red" data-count="0">0</div>
+            <div class="stat-compact-label">今日新增</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 筛选区 -->
+    <div class="panel filter-side">
+      <div class="filter-body">
+        <div class="filter-row compact">
+          <div class="filter-group inline">
+            <label>布控库</label>
+            <select class="filter-select" id="ctrlFilterLibrary"><option value="">全部</option><option>重点人员库</option><option>在逃人员库</option><option>涉恐人员库</option></select>
+          </div>
+          <div class="filter-group inline">
+            <label>号码</label>
+            <select class="filter-select" id="ctrlFilterNumberType"><option value="">全部</option><option>身份证号</option><option>手机号</option></select>
+          </div>
+          <div class="filter-group inline">
+            <label>姓名/证件</label>
+            <input class="filter-input" id="ctrlFilterKeyword" placeholder="姓名或身份证号">
+          </div>
+        </div>
+        <div class="filter-row compact">
+          <div class="filter-group inline">
+            <label>地址</label>
+            <select class="filter-select" id="ctrlFilterAddress"><option value="">全部</option><option>城中区</option><option>鱼峰区</option><option>柳南区</option><option>柳北区</option><option>柳江区</option></select>
+          </div>
+          <div class="filter-group inline">
+            <label>布控状态</label>
+            <select class="filter-select" id="ctrlFilterStatus"><option value="">全部</option><option>布控中</option><option>待审批</option><option>已撤控</option></select>
+          </div>
+          <div class="filter-group inline">
+            <label>人像照片</label>
+            <select class="filter-select" id="ctrlFilterPhoto"><option value="">全部</option><option>有照片</option><option>无照片</option></select>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 批量操作栏 -->
+    <div class="panel">
+      <div class="batch-bar">
+        <div class="batch-left">
+          <div class="batch-actions">
+            <button class="filter-btn btn-search" onclick="onControlSearch()"><i class="fas fa-search"></i> 查询</button>
+            <button class="filter-btn btn-reset" onclick="onControlReset()"><i class="fas fa-rotate-left"></i> 重置</button>
+            <button class="filter-btn btn-export" onclick="onImport()"><i class="fas fa-file-import"></i> 导入</button>
+            <button class="filter-btn btn-rule" onclick="alert('预警规则配置开发中')"><i class="fas fa-sliders"></i> 预警规则</button>
+            <button class="filter-btn btn-batch-action btn-revoke" id="btnBatchRevoke" onclick="onBatchRevoke()" disabled><i class="fas fa-ban"></i> 批量撤控</button>
+            <button class="filter-btn btn-batch-action btn-delete" id="btnBatchDelete" onclick="onBatchDelete()" disabled><i class="fas fa-trash"></i> 批量删除</button>
+            <button class="filter-btn btn-batch-action btn-today" onclick="loadTodayControls()"><i class="fas fa-bell"></i> 今日预警</button>
+          </div>
+        </div>
+        <div class="results-right">
+          <span class="results-count">共 <span class="highlight" id="controlTotalCount">0</span> 条</span>
+          <div class="pagination" id="controlPagination"></div>
+          <select class="page-size" id="controlPageSize" onchange="onControlPageSizeChange(this.value)">
+            <option value="20">20条/页</option>
+            <option value="50">50条/页</option>
+            <option value="100">100条/页</option>
+          </select>
+          <span class="page-jump">
+            到第 <input type="number" id="controlPageJump" min="1" value="1" onkeydown="if(event.key==='Enter')jumpToControlPage(this.value)"> 页
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 数据表格 -->
+    <div class="panel control-table-wrap">
+      <table class="control-table">
+        <thead>
+          <tr>
+            <th><input type="checkbox" class="ctrl-row-checkbox" id="selectAllCheckbox" onclick="toggleSelectAll()"></th>
+            <th>照片</th>
+            <th>姓名</th>
+            <th>身份证号</th>
+            <th>性别</th>
+            <th>年龄</th>
+            <th>民族</th>
+            <th>布控库</th>
+            <th>布控状态</th>
+            <th>近24小时最新预警</th>
+            <th>所属分局</th>
+            <th>所属派出所</th>
+            <th>所属社区</th>
+            <th>曾用名</th>
+            <th>手机号码</th>
+            <th>户籍地址</th>
+            <th>现住址</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody id="controlTableBody"></tbody>
+      </table>
+    </div>
+
+  </div>
+
+  <script src="/static/js/shared.js"></script>
+  <script src="/static/js/control.js"></script>
+</body>
+</html>

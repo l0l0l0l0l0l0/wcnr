@@ -17,7 +17,7 @@ if not exist ".venv\" (
 )
 
 :: 安装依赖
-.venv\Scripts\python -m pip install -q --no-index --find-links deps -r requirements.txt 2> nul || .venv\Scripts\python -m pip install -q -r requirements.txt
+.venv\Scripts\python -m pip install -q --no-index --find-links offline_deps\pip_cache -r requirements.txt 2> nul || .venv\Scripts\python -m pip install -q -r requirements.txt
 
 echo 启动服务...
 .venv\Scripts\python run.py

@@ -18,7 +18,7 @@ fi
 
 # 激活虚拟环境并安装依赖
 source .venv/bin/activate
-pip install -q --no-index --find-links ./deps -r requirements.txt 2>/dev/null || pip install -q -r requirements.txt
+pip install -q --no-index --find-links ./offline_deps/pip_cache -r requirements.txt 2>/dev/null || pip install -q -r requirements.txt
 
 echo "启动服务..."
 python run.py

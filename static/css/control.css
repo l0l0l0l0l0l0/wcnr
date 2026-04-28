@@ -1,0 +1,186 @@
+/* ===== CONTROL TABLE ===== */
+.control-table-wrap {
+  padding: 0;
+  overflow-x: auto;
+}
+
+.control-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  min-width: 1400px;
+}
+
+.control-table thead {
+  background: #f8fafc;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.control-table th {
+  padding: 12px 10px;
+  text-align: left;
+  font-weight: 600;
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border-light);
+  white-space: nowrap;
+  font-size: 12px;
+}
+
+.control-table th:first-child { padding-left: 20px; width: 40px; }
+.control-table th:last-child { padding-right: 20px; }
+
+.control-table td {
+  padding: 10px;
+  border-bottom: 1px solid var(--border-light);
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.control-table td:first-child { padding-left: 20px; }
+.control-table td:last-child { padding-right: 20px; }
+
+.control-table tbody tr {
+  transition: background 0.15s;
+}
+
+.control-table tbody tr:hover {
+  background: #f8fafc;
+}
+
+.control-table tbody tr.selected {
+  background: #eff6ff;
+}
+
+.control-photo {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #dbeafe, #bfdbfe);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--blue);
+  font-size: 14px;
+}
+
+.ctrl-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 700;
+}
+.ctrl-status.controlling {
+  background: var(--green-light);
+  color: var(--green);
+}
+.ctrl-status.pending {
+  background: var(--orange-light);
+  color: var(--orange);
+}
+.ctrl-status.revoked {
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.ctrl-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ctrl-actions i {
+  cursor: pointer;
+  color: var(--text-muted);
+  transition: color 0.2s;
+  font-size: 13px;
+}
+.ctrl-actions i:hover { color: var(--gov-blue-light); }
+.ctrl-actions i.delete:hover { color: var(--red); }
+
+.ctrl-row-checkbox {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  accent-color: var(--gov-blue-light);
+}
+
+.batch-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 20px;
+  background: #fafbfc;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.batch-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.batch-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.btn-batch-action {
+  height: 30px;
+  padding: 0 14px;
+  border-radius: var(--radius-sm);
+  border: none;
+  font-size: 12px;
+  font-family: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.btn-revoke {
+  background: linear-gradient(135deg, var(--orange), #f97316);
+  color: #fff;
+  box-shadow: 0 2px 6px rgba(234, 88, 12, 0.2);
+}
+.btn-revoke:hover { transform: translateY(-1px); box-shadow: 0 3px 10px rgba(234, 88, 12, 0.3); }
+.btn-revoke:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.btn-delete {
+  background: linear-gradient(135deg, var(--red), #ef4444);
+  color: #fff;
+  box-shadow: 0 2px 6px rgba(220, 38, 38, 0.2);
+}
+.btn-delete:hover { transform: translateY(-1px); box-shadow: 0 3px 10px rgba(220, 38, 38, 0.3); }
+.btn-delete:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.btn-today {
+  background: linear-gradient(135deg, var(--green), #22c55e);
+  color: #fff;
+  box-shadow: 0 2px 6px rgba(22, 163, 74, 0.2);
+}
+.btn-today:hover { transform: translateY(-1px); box-shadow: 0 3px 10px rgba(22, 163, 74, 0.3); }
+
+.btn-rule {
+  background: #f8fafc;
+  color: var(--text-secondary);
+  border: 1px solid var(--border-light);
+}
+.btn-rule:hover { background: #f1f5f9; border-color: var(--border); }

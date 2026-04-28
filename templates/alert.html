@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>重点人管控系统 - 预警中心</title>
+  <link rel="stylesheet" href="/static/css/font-awesome.min.css">
+  <link rel="stylesheet" href="/static/css/shared.css">
+  <link rel="stylesheet" href="/static/css/alert.css">
+  <script src="/static/js/auth.js"></script>
+</head>
+<body data-page="alert">
+
+  <header class="header">
+    <div class="header-left">
+      <div class="logo">
+        <div class="logo-icon"><img src="/static/img/1.png" alt="logo"></div>
+        <div class="logo-text">重点人管控</div>
+      </div>
+      <nav class="nav-menu" id="topNav">
+        <a class="nav-item" data-nav="control" href="/control"><i class="fas fa-bullhorn"></i>布控管理</a>
+        <a class="nav-item active" data-nav="alert" href="/"><i class="fas fa-star" style="color:#facc15;"></i>预警中心</a>
+        <a class="nav-item" data-nav="report" href="/report"><i class="fas fa-chart-bar"></i>统计报表</a>
+        <a class="nav-item" id="navUsers" href="/users" style="display:none"><i class="fas fa-users-cog"></i>用户管理</a>
+      </nav>
+    </div>
+    <div class="header-right">
+      <div class="alert-badge">
+        <i class="fas fa-bell" style="font-size:11px;"></i>
+        <span>预警</span>
+      </div>
+      <div class="header-stat"><i class="fas fa-chart-bar" style="font-size:11px; color:rgba(255,255,255,0.6); margin-right:4px;"></i>今日总访问量: <span>125</span></div>
+      <div class="header-stat">今日登录人数: <span>43</span></div>
+      <div class="header-stat">在线人数: <span>28</span></div>
+      <div class="user-menu" id="userMenu" style="position:relative;">
+        <div class="user-avatar" onclick="toggleUserDropdown()"><i class="fas fa-user"></i></div>
+        <div class="user-dropdown" id="userDropdown" style="display:none;position:absolute;right:0;top:44px;background:var(--white);border-radius:var(--radius);box-shadow:0 8px 24px rgba(0,0,0,0.12);min-width:180px;border:1px solid var(--border-light);z-index:1001;">
+          <div style="padding:12px 16px;display:flex;flex-direction:column;gap:4px;">
+            <span id="dropdownUsername" style="font-weight:600;color:var(--text);font-size:14px;">--</span>
+            <span id="dropdownRole" style="font-size:11px;color:var(--gov-blue-light);font-weight:500;">--</span>
+          </div>
+          <div style="height:1px;background:var(--border-light);"></div>
+          <div onclick="Auth.logout()" style="display:flex;align-items:center;gap:8px;padding:10px 16px;color:var(--text-secondary);cursor:pointer;font-size:13px;"><i class="fas fa-sign-out-alt"></i>退出登录</div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <div class="main">
+
+    <!-- TOP ROW: 统计 + 筛选 并排卡片 -->
+    <div class="top-row">
+
+      <!-- 左侧：缩小的统计指标 -->
+      <div class="panel stats-side">
+        <div class="stats-title"><i class="fas fa-chart-simple"></i>数据概览</div>
+        <div class="stats-compact-wrap">
+          <div class="stat-compact">
+            <div class="stat-compact-icon blue"><i class="fas fa-history"></i></div>
+            <div class="stat-compact-info">
+              <div class="stat-compact-value blue" data-count="409553">0</div>
+              <div class="stat-compact-label">历史预警</div>
+            </div>
+          </div>
+          <div class="stat-compact">
+            <div class="stat-compact-icon red"><i class="fas fa-bell"></i><i class="fas fa-bolt" style="position:absolute;font-size:7px;color:#fff;top:52%;left:52%;transform:translate(-50%,-50%);"></i></div>
+            <div class="stat-compact-info">
+              <div class="stat-compact-value red" data-count="3674">0</div>
+              <div class="stat-compact-label">今日预警</div>
+            </div>
+          </div>
+          <div class="stat-compact">
+            <div class="stat-compact-icon green"><i class="fas fa-pen-to-square"></i></div>
+            <div class="stat-compact-info">
+              <div class="stat-compact-value green" data-count="511">0</div>
+              <div class="stat-compact-label">待签收</div>
+            </div>
+          </div>
+          <div class="stat-compact">
+            <div class="stat-compact-icon blue"><i class="fas fa-pen-to-square"></i></div>
+            <div class="stat-compact-info">
+              <div class="stat-compact-value blue" data-count="16">0</div>
+              <div class="stat-compact-label">待反馈</div>
+            </div>
+          </div>
+          <div class="stat-compact">
+            <div class="stat-compact-icon green"><i class="fas fa-clipboard-check"></i></div>
+            <div class="stat-compact-info">
+              <div class="stat-compact-value green" data-count="58">0</div>
+              <div class="stat-compact-label">已反馈</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 右侧：筛选条件（第一行） -->
+      <div class="panel filter-side">
+        <div class="filter-body">
+          <div class="filter-row compact">
+            <div class="filter-group inline date-range-group">
+              <label>预警时间</label>
+              <div class="date-range-wrap">
+                <input class="filter-input date-input" id="dateStart" placeholder="开始日期" readonly>
+                <span class="date-sep">~</span>
+                <input class="filter-input date-input" id="dateEnd" placeholder="结束日期" readonly>
+                <i class="fas fa-calendar-alt date-icon" id="dateIcon"></i>
+              </div>
+            </div>
+            <div class="filter-group inline time-period-group">
+              <label>时段</label>
+              <select class="filter-select" id="timePeriod">
+                <option value="">请选择</option>
+                <option value="hour">小时</option>
+                <option value="minute">分钟</option>
+              </select>
+              <div class="time-range-wrap" id="timeRangeWrap" style="display:none;">
+                <div class="time-range-group" id="hourRangeGroup" style="display:none;">
+                  <select class="filter-select time-range-select" id="hourStart"></select>
+                  <span class="time-sep">~</span>
+                  <select class="filter-select time-range-select" id="hourEnd"></select>
+                </div>
+                <div class="time-range-group" id="minuteRangeGroup" style="display:none;">
+                  <select class="filter-select time-range-select" id="minuteStart"></select>
+                  <span class="time-sep">~</span>
+                  <select class="filter-select time-range-select" id="minuteEnd"></select>
+                </div>
+              </div>
+            </div>
+            <div class="filter-group inline">
+              <label>预警信息</label>
+              <input class="filter-input" placeholder="证件/车牌号">
+            </div>
+          </div>
+          <div class="filter-row compact">
+            <div class="filter-group inline">
+              <label>处置内容</label>
+              <input class="filter-input" placeholder="请输入处置内容">
+            </div>
+            <div class="filter-group inline">
+              <label>流转状态</label>
+              <select class="filter-select"><option>全部</option><option>待签收</option><option>待反馈</option><option>已反馈</option><option>已签收</option></select>
+            </div>
+            <div class="filter-group inline">
+              <label>处置结果</label>
+              <select class="filter-select"><option>全部</option><option>有效</option><option>无效</option><option>误报</option></select>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- 第二行筛选 -->
+    <div class="panel filter-side">
+      <div class="filter-body">
+        <div class="filter-row">
+          <div class="filter-group inline">
+            <label>单位</label>
+            <select class="filter-select"><option>柳州市公安局</option><option>南宁市公安局</option><option>桂林市公安局</option></select>
+          </div>
+          <div class="filter-group inline">
+            <label>布控库</label>
+            <select class="filter-select"><option>全部</option><option>重点人员库</option><option>在逃人员库</option></select>
+          </div>
+          <div class="filter-group inline">
+            <label>卡口标签</label>
+            <select class="filter-select"><option>请选择</option><option>市区卡口</option><option>高速卡口</option></select>
+          </div>
+          <div class="filter-group inline">
+            <label>性别</label>
+            <select class="filter-select"><option>全部</option><option>男</option><option>女</option></select>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RESULTS BAR -->
+    <div class="panel">
+      <div class="results-bar">
+        <div class="results-left">
+          <div class="filter-group inline">
+            <label>人员标签</label>
+            <input class="filter-input" placeholder="请输入">
+          </div>
+          <div class="filter-group inline">
+            <label>卡口类型</label>
+            <select class="filter-select"><option>请选择</option><option>人脸卡口</option><option>车辆卡口</option></select>
+          </div>
+        </div>
+        <div class="results-right">
+          <span class="results-count">共 <span class="highlight" id="totalCount">0</span> 条</span>
+          <div class="pagination" id="pagination"></div>
+          <select class="page-size" id="pageSize" onchange="onPageSizeChange(this.value)">
+            <option value="20">20条/页</option>
+            <option value="50">50条/页</option>
+            <option value="100">100条/页</option>
+          </select>
+          <span class="page-jump">
+            到第 <input type="number" id="pageJump" min="1" value="1" onkeydown="if(event.key==='Enter')jumpToPage(this.value)"> 页
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <!-- CARD GRID -->
+    <div class="cards-section">
+      <div class="cards-grid" id="cardsGrid"></div>
+    </div>
+
+  </div>
+
+  <script src="/static/js/shared.js"></script>
+  <script src="/static/js/alert.js"></script>
+</body>
+</html>
