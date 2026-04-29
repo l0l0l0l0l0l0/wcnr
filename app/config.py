@@ -6,6 +6,8 @@
 
 from __future__ import annotations
 
+from typing import Optional
+
 from pydantic_settings import BaseSettings
 from pydantic import Field
 from pymysql.cursors import DictCursor
@@ -44,6 +46,13 @@ class Settings(BaseSettings):
     # ==================== Dify 服务配置 ====================
     app_secret: str = Field(default="", alias="APP_SECRET_VALUE")
 
+    # ==================== LLM / AI 画像配置 ====================
+    llm_provider: str = Field(default="anthropic", alias="LLM_PROVIDER")
+    llm_api_key: str = Field(default="", alias="LLM_API_KEY")
+    llm_base_url: str = Field(default="", alias="LLM_BASE_URL")
+    llm_model: str = Field(default="claude-sonnet-4-6", alias="LLM_MODEL")
+    llm_max_tokens: int = Field(default=4096, alias="LLM_MAX_TOKENS")
+
     # ==================== JWT 配置 ====================
     jwt_secret_key: str = Field(default="wcnr-secret-change-in-production", alias="JWT_SECRET_KEY")
     jwt_algorithm: str = Field(default="HS256", alias="JWT_ALGORITHM")
@@ -70,7 +79,7 @@ class Settings(BaseSettings):
         }
 
 
-_settings: Settings | None = None
+_settings: Optional[Settings] = None
 
 
 def get_settings() -> Settings:

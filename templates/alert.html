@@ -21,6 +21,7 @@
         <a class="nav-item" data-nav="control" href="/control"><i class="fas fa-bullhorn"></i>布控管理</a>
         <a class="nav-item active" data-nav="alert" href="/"><i class="fas fa-star" style="color:#facc15;"></i>预警中心</a>
         <a class="nav-item" data-nav="report" href="/report"><i class="fas fa-chart-bar"></i>统计报表</a>
+        <a class="nav-item" data-nav="ai_portrait" href="/ai-portrait"><i class="fas fa-robot"></i>AI画像</a>
         <a class="nav-item" id="navUsers" href="/users" style="display:none"><i class="fas fa-users-cog"></i>用户管理</a>
       </nav>
     </div>
@@ -209,6 +210,62 @@
       <div class="cards-grid" id="cardsGrid"></div>
     </div>
 
+  </div>
+
+  <!-- Alert Process Modal -->
+  <div class="modal-overlay" id="alertModalOverlay">
+    <div class="modal alert-modal">
+      <div class="modal-header">
+        <h3 id="alertModalTitle">预警详情</h3>
+        <button class="modal-close" onclick="closeAlertModal()"><i class="fas fa-xmark"></i></button>
+      </div>
+      <div class="modal-body">
+        <div class="alert-detail-images">
+          <div class="alert-detail-img" id="modalSnapImg"><i class="fas fa-camera"></i><span>抓拍图</span></div>
+          <div class="alert-detail-img" id="modalFaceImg"><i class="fas fa-user"></i><span>人脸图</span></div>
+        </div>
+        <div class="alert-detail-info">
+          <div class="detail-row"><label>姓名</label><span id="modalName">--</span></div>
+          <div class="detail-row"><label>身份证号</label><span id="modalIdCard">--</span></div>
+          <div class="detail-row"><label>预警时间</label><span id="modalTime">--</span></div>
+          <div class="detail-row"><label>预警地点</label><span id="modalLocation">--</span></div>
+          <div class="detail-row"><label>摄像头编号</label><span id="modalCameraCode">--</span></div>
+          <div class="detail-row"><label>相似度</label><span id="modalSimilarity">--</span></div>
+          <div class="detail-row"><label>当前状态</label><span id="modalStatus" class="status-badge">--</span></div>
+        </div>
+        <div class="alert-process-history" id="modalHistory" style="display:none;">
+          <div class="detail-divider"></div>
+          <div class="history-title">流转记录</div>
+          <div id="modalHistoryList"></div>
+        </div>
+        <div class="alert-process-form" id="signForm" style="display:none;">
+          <div class="detail-divider"></div>
+          <div class="form-group">
+            <label>签收人</label>
+            <input type="text" id="signHandler" readonly>
+          </div>
+          <div class="form-group">
+            <label>备注</label>
+            <textarea id="signRemark" placeholder="请输入签收备注（选填）" rows="3"></textarea>
+          </div>
+        </div>
+        <div class="alert-process-form" id="feedbackForm" style="display:none;">
+          <div class="detail-divider"></div>
+          <div class="form-group">
+            <label>反馈人</label>
+            <input type="text" id="feedbackHandler" readonly>
+          </div>
+          <div class="form-group">
+            <label>反馈内容 <span class="required">*</span></label>
+            <textarea id="feedbackContent" placeholder="请输入反馈内容（必填）" rows="3"></textarea>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer" id="alertModalFooter">
+        <button class="btn btn-outline" onclick="closeAlertModal()">取消</button>
+        <button class="btn btn-primary" id="alertModalSubmitBtn" onclick="submitAlertProcess()">确认签收</button>
+      </div>
+    </div>
   </div>
 
   <script src="/static/js/shared.js"></script>

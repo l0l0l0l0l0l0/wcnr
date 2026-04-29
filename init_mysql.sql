@@ -569,6 +569,23 @@ CREATE TABLE IF NOT EXISTS case_staging (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='案件数据导入暂存表';
 
 
+-- ==================== 警情流转日志表 ====================
+CREATE TABLE IF NOT EXISTS alert_process_logs (
+    id               INT AUTO_INCREMENT PRIMARY KEY COMMENT 'ID',
+    record_id        BIGINT NOT NULL COMMENT '关联 capture_records.id',
+    action           VARCHAR(20) NOT NULL COMMENT '操作类型: sign/feedback',
+    old_status       TINYINT DEFAULT NULL COMMENT '原状态',
+    new_status       TINYINT DEFAULT NULL COMMENT '新状态',
+    handler_name     VARCHAR(100) DEFAULT NULL COMMENT '处理人姓名',
+    handler_id       INT DEFAULT NULL COMMENT '处理人用户ID',
+    remark           TEXT DEFAULT NULL COMMENT '签收备注',
+    feedback_content TEXT DEFAULT NULL COMMENT '反馈内容',
+    created_at       DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '操作时间',
+    INDEX idx_record_id (record_id),
+    INDEX idx_handler_id (handler_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='警情流转日志表';
+
+
 -- ==================== 布控人员表增加数据来源字段 ====================
 ALTER TABLE young_peoples
     ADD COLUMN IF NOT EXISTS data_source VARCHAR(50) DEFAULT 'manual' COMMENT '数据来源: manual/jingzong/renkou/other',

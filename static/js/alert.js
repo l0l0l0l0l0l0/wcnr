@@ -321,8 +321,14 @@ function renderCards(data) {
     const simClass = sim >= 95 ? 'high' : sim >= 90 ? 'mid' : 'low';
     const status = statusConfig[item.status] || statusConfig['待签收'];
 
-    const snapSrc = proxyUrl(item.bkg_url || item.face_pic_url);
-    const faceSrc = proxyUrl(item.face_pic_url);
+    const isClickable = item.status === '待签收' || item.status === '待反馈' || item.status === '已反馈';
+
+    // 抓拍图：优先使用 bkg_url，其次使用 face_pic_url
+    const snapSrcRaw = item.bkg_url || item.face_pic_url || '';
+    const snapSrc = snapSrcRaw ? `/proxy-pic?url=${encodeURIComponent(snapSrcRaw)}` : '';
+    // 人脸图：优先使用 face_pic_url，其次使用 person_face_url 作为备选
+    const faceSrcRaw = item.face_pic_url || item.person_face_url || '';
+    const faceSrc = faceSrcRaw ? `/proxy-pic?url=${encodeURIComponent(faceSrcRaw)}` : '';
 
     return `
       <div class="person-card">
@@ -345,7 +351,8 @@ function renderCards(data) {
           <div class="card-divider"></div>
           <div class="card-footer">
             <span class="tag tag-person">${item.person_tag || '重点人员'}</span>
-            <span class="status-badge ${status.class}">${status.text}</span>
+            <span class="status-badge ${status.class} ${isClickable ? 'clickable' : ''}"
+                  onclick="${isClickable ? `openAlertModal(${item.db_id},'${item.status}')` : ''}">${status.text}</span>
           </div>
         </div>
       </div>
@@ -391,3 +398,166 @@ function jumpToPage(page) {
 initDatePickers();
 loadStats();
 loadAlerts(1, 20);
+
+// Overlay click to close
+document.getElementById('alertModalOverlay').addEventListener('click', (e) => {
+  if (e.target === e.currentTarget) closeAlertModal();
+});
+
+/* ===== ALERT PROCESS MODAL ===== */
+let currentAlertDbId = null;
+let currentAlertStatus = null;
+
+async function openAlertModal(dbId, status) {
+  currentAlertDbId = dbId;
+  currentAlertStatus = status;
+
+  const overlay = document.getElementById('alertModalOverlay');
+
+  // Reset form state
+  document.getElementById('signForm').style.display = 'none';
+  document.getElementById('feedbackForm').style.display = 'none';
+  document.getElementById('modalHistory').style.display = 'none';
+  document.getElementById('alertModalFooter').style.display = '';
+  document.getElementById('alertModalSubmitBtn').disabled = true;
+
+  overlay.classList.add('show');
+
+  try {
+    const res = await Auth.authFetch(`${API_BASE}/api/alerts/${dbId}/detail`);
+    const result = await res.json();
+    if (!result.success) { alert('获取预警详情失败'); closeAlertModal(); return; }
+
+    const d = result.data;
+
+    // Images
+    const snapSrc = d.bkg_url ? `/proxy-pic?url=${encodeURIComponent(d.bkg_url)}` : '';
+    const faceSrc = d.face_pic_url ? `/proxy-pic?url=${encodeURIComponent(d.face_pic_url)}` : '';
+    document.getElementById('modalSnapImg').innerHTML = snapSrc
+      ? `<img src="${snapSrc}" style="width:100%;height:100%;object-fit:cover;border-radius:6px;">`
+      : '<i class="fas fa-camera"></i><span>抓拍图</span>';
+    document.getElementById('modalFaceImg').innerHTML = faceSrc
+      ? `<img src="${faceSrc}" style="width:100%;height:100%;object-fit:cover;border-radius:6px;">`
+      : '<i class="fas fa-user"></i><span>人脸图</span>';
+
+    // Info fields
+    document.getElementById('modalName').textContent = d.name || '--';
+    document.getElementById('modalIdCard').textContent = d.person_id_card || '--';
+    document.getElementById('modalTime').textContent = d.time || '--';
+    document.getElementById('modalLocation').textContent = d.location || '--';
+    document.getElementById('modalCameraCode').textContent = d.camera_index_code || '--';
+    document.getElementById('modalSimilarity').textContent = (d.similarity || 0) + '%';
+
+    const statusConf = statusConfig[d.status] || statusConfig['待签收'];
+    const statusSpan = document.getElementById('modalStatus');
+    statusSpan.textContent = statusConf.text;
+    statusSpan.className = 'status-badge ' + statusConf.class;
+
+    // Show appropriate form based on status
+    const user = Auth.getUser();
+    const handlerName = user ? (user.real_name || user.username) : '--';
+
+    if (d.is_processed === 0) {
+      document.getElementById('alertModalTitle').textContent = '签收预警';
+      document.getElementById('signForm').style.display = '';
+      document.getElementById('signHandler').value = handlerName;
+      document.getElementById('signRemark').value = '';
+      document.getElementById('alertModalSubmitBtn').textContent = '确认签收';
+      document.getElementById('alertModalSubmitBtn').disabled = false;
+    } else if (d.is_processed === 1) {
+      document.getElementById('alertModalTitle').textContent = '反馈预警';
+      document.getElementById('feedbackForm').style.display = '';
+      document.getElementById('feedbackHandler').value = handlerName;
+      document.getElementById('feedbackContent').value = '';
+      document.getElementById('alertModalSubmitBtn').textContent = '提交反馈';
+      document.getElementById('alertModalSubmitBtn').disabled = false;
+    } else if (d.is_processed === 2) {
+      document.getElementById('alertModalTitle').textContent = '再次反馈';
+      document.getElementById('feedbackForm').style.display = '';
+      document.getElementById('feedbackHandler').value = handlerName;
+      document.getElementById('feedbackContent').value = '';
+      document.getElementById('alertModalSubmitBtn').textContent = '再次反馈';
+      document.getElementById('alertModalSubmitBtn').disabled = false;
+    } else {
+      document.getElementById('alertModalTitle').textContent = '预警详情';
+      document.getElementById('alertModalFooter').style.display = 'none';
+    }
+
+    // Show history if logs exist
+    if (d.logs && d.logs.length > 0) {
+      document.getElementById('modalHistory').style.display = '';
+      document.getElementById('modalHistoryList').innerHTML = d.logs.map(log => {
+        const actionLabel = log.action === 'sign' ? '签收' : '反馈';
+        const detail = log.remark || log.feedback_content || '';
+        return `<div class="history-item">
+          <span class="history-action">${actionLabel}</span>
+          <span>${log.handler_name || '--'}</span>
+          ${detail ? '<span>' + detail + '</span>' : ''}
+          <span class="history-time">${log.created_at}</span>
+        </div>`;
+      }).join('');
+    }
+
+  } catch (e) {
+    console.error('加载预警详情失败:', e);
+    alert('加载预警详情失败');
+    closeAlertModal();
+  }
+}
+
+function closeAlertModal() {
+  document.getElementById('alertModalOverlay').classList.remove('show');
+  currentAlertDbId = null;
+  currentAlertStatus = null;
+  document.getElementById('alertModalFooter').style.display = '';
+}
+
+async function submitAlertProcess() {
+  if (!currentAlertDbId) return;
+
+  const btn = document.getElementById('alertModalSubmitBtn');
+  btn.disabled = true;
+  const originalText = btn.textContent;
+  btn.textContent = '处理中...';
+
+  try {
+    let url, body;
+
+    if (currentAlertStatus === '待签收') {
+      url = `${API_BASE}/api/alerts/${currentAlertDbId}/sign`;
+      body = JSON.stringify({ remark: document.getElementById('signRemark').value.trim() || null });
+    } else {
+      const content = document.getElementById('feedbackContent').value.trim();
+      if (!content) {
+        alert('请输入反馈内容');
+        btn.disabled = false;
+        btn.textContent = originalText;
+        return;
+      }
+      url = `${API_BASE}/api/alerts/${currentAlertDbId}/feedback`;
+      body = JSON.stringify({ feedback_content: content });
+    }
+
+    const res = await Auth.authFetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: body
+    });
+    const result = await res.json();
+
+    if (result.success) {
+      closeAlertModal();
+      loadAlerts(currentPage, currentPerPage);
+      loadStats();
+    } else {
+      alert(result.message || '操作失败');
+      btn.disabled = false;
+      btn.textContent = originalText;
+    }
+  } catch (e) {
+    console.error('提交失败:', e);
+    alert('提交失败');
+    btn.disabled = false;
+    btn.textContent = originalText;
+  }
+}

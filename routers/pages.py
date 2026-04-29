@@ -48,3 +48,8 @@ def clues_page():
     if path.exists():
         return FileResponse(path)
     return HTMLResponse("<h1>线索管理页面开发中</h1>", status_code=200)
+
+
+@router.get("/ai-portrait", response_class=HTMLResponse)
+def ai_portrait_page():
+    return FileResponse(TEMPLATES_DIR / "ai_portrait.html")
