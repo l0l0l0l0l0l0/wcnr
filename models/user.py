@@ -30,6 +30,7 @@ class UserUpdate(BaseModel):
 
 class UserSelfUpdate(BaseModel):
     real_name: Optional[str] = None
+    old_password: Optional[str] = None
     password: Optional[str] = Field(default=None, min_length=6, max_length=128)
 
 

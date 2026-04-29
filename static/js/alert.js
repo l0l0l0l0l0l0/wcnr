@@ -327,7 +327,7 @@ function renderCards(data) {
     const status = statusConfig[item.status] || statusConfig['待签收'];
 
     const snapSrc = proxyUrl(item.bkg_url || item.face_pic_url);
-    const faceSrc = proxyUrl(item.person_face_url || item.face_pic_url);
+    const faceSrc = proxyUrl(item.face_pic_url);
 
     return `
       <div class="person-card">
@@ -343,7 +343,7 @@ function renderCards(data) {
         <div class="card-body">
           <div class="person-name-row">
             <span class="person-name">${item.name}</span>
-            <span class="person-id">尾号${item.id_tail || '****'}</span>
+            <span class="person-id">${item.person_id_card || ''}</span>
           </div>
           <div class="info-row"><i class="far fa-clock"></i><span>${item.time}</span></div>
           <div class="info-row"><i class="fas fa-map-marker-alt"></i><span>${item.location}</span></div>

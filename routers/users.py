@@ -80,6 +80,13 @@ def update_me(
         updates.append("real_name = %s")
         params.append(body.real_name)
     if body.password is not None:
+        if not body.old_password:
+            raise AppError("修改密码需提供原密码", status_code=400)
+        with conn.cursor(DictCursor) as cursor:
+            cursor.execute("SELECT password FROM users WHERE id = %s", (current_user["id"],))
+            row = cursor.fetchone()
+        if not row or not verify_password(body.old_password, row["password"]):
+            raise AppError("原密码错误", status_code=400)
         updates.append("password = %s")
         params.append(hash_password(body.password))
 

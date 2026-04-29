@@ -94,7 +94,7 @@ def get_alerts(
         offset = (page - 1) * per_page
 
         sql = f"""
-        SELECT cr.*, yp.name AS person_name
+        SELECT cr.*, yp.name AS person_name, yp.control_category
         FROM capture_records cr
         LEFT JOIN young_peoples yp ON cr.person_id_card = yp.id_card_number
         {where_sql}
@@ -116,14 +116,14 @@ def get_alerts(
             items.append({
                 "id": r.get("capture_id", ""),
                 "name": r.get("person_name") or r.get("person_id_card", ""),
-                "id_tail": (r.get("person_id_card") or "")[-4:] if r.get("person_id_card") else "****",
+                "person_id_card": r.get("person_id_card") or "",
                 "similarity": sim,
                 "time": r.get("capture_time").strftime("%Y-%m-%d %H:%M:%S") if r.get("capture_time") else "",
                 "location": r.get("camera_name", ""),
                 "camera": r.get("camera_name", ""),
                 "type": "车辆" if r.get("plate_no") else "人脸",
                 "status": status_labels.get(r.get("is_processed", 0), "待签收"),
-                "person_tag": "重点人员",
+                "person_tag": r.get("control_category") or "重点人员",
                 "face_pic_url": r.get("face_pic_url"),
                 "bkg_url": r.get("bkg_url"),
                 "person_face_url": r.get("person_face_url"),

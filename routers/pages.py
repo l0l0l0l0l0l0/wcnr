@@ -37,6 +37,11 @@ def users_page():
     return FileResponse(TEMPLATES_DIR / "users.html")
 
 
+@router.get("/settings", response_class=HTMLResponse)
+def settings_page():
+    return FileResponse(TEMPLATES_DIR / "settings.html")
+
+
 @router.get("/clues", response_class=HTMLResponse)
 def clues_page():
     path = TEMPLATES_DIR / "clues.html"
