@@ -39,13 +39,8 @@ function openCalendar(anchorEl) {
     window.removeEventListener('resize', onScrollResize);
   };
 
-  const onClickOutside = (e) => {
-    if (!popup.contains(e.target) && e.target !== document.getElementById('dateStart') && e.target !== document.getElementById('dateEnd') && e.target !== document.getElementById('dateIcon')) {
-      closeCalendar();
-    }
-  };
-  setTimeout(() => document.addEventListener('click', onClickOutside), 0);
-  popup._cleanupClick = () => document.removeEventListener('click', onClickOutside);
+  // Calendar only closes via confirm button
+  popup._cleanupClick = () => {};
 }
 
 function positionCalendar() {
@@ -141,7 +136,7 @@ function renderCalendar() {
         <button class="cal-shortcut" onclick="calShortcut('week')">本周</button>
         <button class="cal-shortcut" onclick="calShortcut('month')">本月</button>
       </div>
-      <button class="cal-confirm-btn" onclick="confirmDateRange()">确定</button>
+      <button class="cal-confirm-btn${(!calState.rangeStart || !calState.rangeEnd) ? ' disabled' : ''}" ${(!calState.rangeStart || !calState.rangeEnd) ? 'disabled' : ''} onclick="confirmDateRange()">确定</button>
     </div>`;
 
   popup.innerHTML = html;

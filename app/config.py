@@ -15,8 +15,8 @@ class Settings(BaseSettings):
     # ==================== 数据库配置 ====================
     db_host: str = Field(default="localhost", alias="DB_HOST")
     db_port: int = Field(default=3306, alias="DB_PORT")
-    db_user: str = Field(default="root", alias="DB_USER")
-    db_password: str = Field(default="root_password", alias="DB_PASSWORD")
+    db_user: str = Field(default="admin", alias="DB_USER")
+    db_password: str = Field(default="123456", alias="DB_PASSWORD")
     db_name: str = Field(default="wcnr", alias="DB_NAME")
     db_charset: str = "utf8mb4"
 
