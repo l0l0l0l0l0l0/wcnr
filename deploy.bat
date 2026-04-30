@@ -15,23 +15,34 @@ if errorlevel 1 (
     exit /b 1
 )
 
+:: -------- 生成不含注释的 requirements --------
+echo [0/3] 准备依赖清单 ...
+python -c "lines=[l.strip() for l in open('requirements.txt','r',encoding='utf-8') if l.strip() and not l.strip().startswith('#')]; open('requirements_clean.txt','w',encoding='utf-8').write('\n'.join(lines))"
+
 :: -------- 第1步：创建虚拟环境 --------
 if not exist ".venv\Scripts\python.exe" (
-    echo [1/2] 正在创建虚拟环境 ...
+    echo [1/3] 正在创建虚拟环境 ...
     python -m venv .venv
     echo       虚拟环境创建完成。
 ) else (
-    echo [1/2] 虚拟环境已存在，跳过。
+    echo [1/3] 虚拟环境已存在，跳过。
 )
 
-:: -------- 第2步：离线安装依赖 --------
-echo [2/2] 正在安装项目依赖 ...
-.venv\Scripts\python -m pip install --no-index --find-links=offline_deps\pip_cache -r requirements.txt
+:: -------- 第2步：升级 pip --------
+echo [2/3] 正在升级 pip ...
+.venv\Scripts\python -m pip install --upgrade pip --no-index --find-links=offline_deps\pip_cache 2>nul || .venv\Scripts\python -m pip install --upgrade pip 2>nul
+
+:: -------- 第3步：离线安装依赖 --------
+echo [3/3] 正在安装项目依赖 ...
+.venv\Scripts\python -m pip install --no-index --find-links=offline_deps\pip_cache -r requirements_clean.txt
 if errorlevel 1 (
     echo 错误：依赖安装失败，请检查 offline_deps\pip_cache 目录。
     pause
     exit /b 1
 )
+
+:: 清理临时文件
+del /q requirements_clean.txt 2>nul
 
 echo.
 echo ============================================================

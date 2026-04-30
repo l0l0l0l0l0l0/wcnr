@@ -65,6 +65,7 @@ def queryPersonByAttrWithPage(person_lib_id, human_ids, name, register_gender, c
     try:
         response = requests.post(url, headers=headers, json=payload, timeout=30, verify=False)
         response.raise_for_status()
+        response.encoding = 'utf-8'
         response_data = response.json()
         logger.debug(f"API 响应状态码: {response.status_code}")
         logger.debug(f"API 响应数据: {json.dumps(response_data, indent=2, ensure_ascii=False)}")

@@ -31,3 +31,7 @@ _old_flask/
 # Offline deps cache
 offline_deps/pip_cache/
 offline_deps/*.zip
+offline_deps/python_embed/
+
+# Temp/reference templates
+templates/1/

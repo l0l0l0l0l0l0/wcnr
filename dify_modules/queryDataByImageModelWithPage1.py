@@ -123,6 +123,14 @@ def query_face_records(
     try:
         response = requests.post(url, headers=headers, json=payload, timeout=30, verify=False)
         response.raise_for_status()
+
+        # 正确处理编码：先尝试 UTF-8，失败则回退 GBK
+        try:
+            _ = response.content.decode('utf-8')
+            response.encoding = 'utf-8'
+        except UnicodeDecodeError:
+            response.encoding = 'gbk'
+
         response_data = response.json()
         logger.info(f"API 响应状态码: {response.status_code}")
         logger.debug(f"API 响应内容: {json.dumps(response_data, indent=2, ensure_ascii=False)}")

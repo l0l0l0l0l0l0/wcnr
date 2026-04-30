@@ -331,12 +331,12 @@ function renderCards(data) {
     const faceSrc = faceSrcRaw ? `/proxy-pic?url=${encodeURIComponent(faceSrcRaw)}` : '';
 
     return `
-      <div class="person-card">
+      <div class="person-card" onclick="openAlertDetail(${item.db_id})">
         <div class="card-images">
-          <div class="img-snap" onclick="window.open('${snapSrc}','_blank')">
+          <div class="img-snap" onclick="event.stopPropagation();window.open('${snapSrc}','_blank')">
             ${snapSrc ? `<img src="${snapSrc}" style="width:100%;height:100%;object-fit:cover;border-radius:6px;" onerror="this.style.display='none';this.parentElement.innerHTML='<i class=\\'fas fa-camera\\'></i><span>抓拍图</span>'">` : '<i class="fas fa-camera"></i><span>抓拍图</span>'}
           </div>
-          <div class="img-face" onclick="window.open('${faceSrc}','_blank')">
+          <div class="img-face" onclick="event.stopPropagation();window.open('${faceSrc}','_blank')">
             ${faceSrc ? `<img src="${faceSrc}" style="width:100%;height:100%;object-fit:cover;border-radius:6px;" onerror="this.style.display='none';this.parentElement.innerHTML='<i class=\\'fas fa-user\\'></i><span>人脸图</span>'">` : '<i class="fas fa-user"></i><span>人脸图</span>'}
           </div>
           <div class="similarity-badge ${simClass}">${sim}%</div>
@@ -352,7 +352,7 @@ function renderCards(data) {
           <div class="card-footer">
             <span class="tag tag-person">${item.person_tag || '重点人员'}</span>
             <span class="status-badge ${status.class} ${isClickable ? 'clickable' : ''}"
-                  onclick="${isClickable ? `openAlertModal(${item.db_id},'${item.status}')` : ''}">${status.text}</span>
+                  onclick="${isClickable ? `event.stopPropagation();openAlertModal(${item.db_id},'${item.status}')` : ''}">${status.text}</span>
           </div>
         </div>
       </div>
@@ -402,6 +402,11 @@ loadAlerts(1, 20);
 // Overlay click to close
 document.getElementById('alertModalOverlay').addEventListener('click', (e) => {
   if (e.target === e.currentTarget) closeAlertModal();
+});
+
+// Detail modal overlay click to close
+document.getElementById('alertDetailOverlay').addEventListener('click', (e) => {
+  if (e.target === e.currentTarget) closeAlertDetail();
 });
 
 /* ===== ALERT PROCESS MODAL ===== */
@@ -560,4 +565,163 @@ async function submitAlertProcess() {
     btn.disabled = false;
     btn.textContent = originalText;
   }
+}
+
+/* ===== ALERT DETAIL MODAL ===== */
+let currentDetailDbId = null;
+
+function switchDetailImageTab(tab) {
+  document.querySelectorAll('.detail-image-tab').forEach(t => t.classList.remove('active'));
+  document.querySelector(`.detail-image-tab[data-tab="${tab}"]`).classList.add('active');
+}
+
+function switchDetailRightTab(tab) {
+  document.querySelectorAll('.detail-right-tab').forEach(t => t.classList.remove('active'));
+  document.querySelector(`.detail-right-tab[data-tab="${tab}"]`).classList.add('active');
+  document.querySelectorAll('.detail-tab-pane').forEach(p => p.classList.remove('active'));
+  const paneMap = { basic: 'detailTabBasic', flow: 'detailTabFlow', history: 'detailTabHistory' };
+  document.getElementById(paneMap[tab]).classList.add('active');
+}
+
+async function openAlertDetail(dbId) {
+  currentDetailDbId = dbId;
+  const overlay = document.getElementById('alertDetailOverlay');
+
+  // Reset to basic tab
+  switchDetailRightTab('basic');
+  document.querySelectorAll('.detail-image-tab').forEach(t => t.classList.remove('active'));
+  document.querySelector('.detail-image-tab[data-tab="face"]').classList.add('active');
+
+  overlay.classList.add('show');
+
+  try {
+    const res = await Auth.authFetch(`${API_BASE}/api/alerts/${dbId}/detail`);
+    const result = await res.json();
+    if (!result.success) { alert('获取预警详情失败'); closeAlertDetail(); return; }
+
+    const d = result.data;
+
+    // Images
+    const snapSrc = d.bkg_url ? `/proxy-pic?url=${encodeURIComponent(d.bkg_url)}` : '';
+    const faceSrc = d.face_pic_url ? `/proxy-pic?url=${encodeURIComponent(d.face_pic_url)}` : '';
+    const personFaceSrc = d.person_face_url ? `/proxy-pic?url=${encodeURIComponent(d.person_face_url)}` : '';
+
+    document.getElementById('detailSnapImg').innerHTML = snapSrc
+      ? `<img src="${snapSrc}" style="width:100%;height:100%;object-fit:cover;" onerror="this.style.display='none';this.parentElement.innerHTML='<i class=\\'fas fa-camera\\'></i><span>抓拍图片</span>'">`
+      : '<i class="fas fa-camera"></i><span>抓拍图片</span>';
+    document.getElementById('detailFaceImg').innerHTML = (faceSrc || personFaceSrc)
+      ? `<img src="${faceSrc || personFaceSrc}" style="width:100%;height:100%;object-fit:cover;" onerror="this.style.display='none';this.parentElement.innerHTML='<i class=\\'fas fa-user\\'></i><span>库对比图</span>'">`
+      : '<i class="fas fa-user"></i><span>库对比图</span>';
+
+    // Basic info
+    const sim = typeof d.similarity === 'number' ? d.similarity : 0;
+    document.getElementById('detailSimilarity').textContent = sim + '%';
+    document.getElementById('detailLib').textContent = d.control_lib || '--';
+    document.getElementById('detailName').textContent = d.name || '--';
+    document.getElementById('detailIdCard').innerHTML = (d.person_id_card || '--') +
+      (d.person_id_card ? ' <span class="detail-ai-badge">AI</span>' : '');
+    document.getElementById('detailGender').textContent = d.gender || '--';
+
+    const tags = d.person_tag ? d.person_tag.split(/[,，、]/).filter(Boolean) : [];
+    document.getElementById('detailTags').innerHTML = tags.length > 0
+      ? tags.map(t => `<span class="detail-tag">${t.trim()}</span>`).join('')
+      : '--';
+    document.getElementById('detailTime').textContent = d.time || '--';
+    document.getElementById('detailSnapTime').textContent = d.snap_time || d.time || '--';
+    document.getElementById('detailLocation').textContent = d.location || '--';
+
+    // Map
+    const mapContainer = document.getElementById('detailMapContainer');
+    if (d.location) {
+      mapContainer.innerHTML = `<iframe src="https://map.baidu.com/search/${encodeURIComponent(d.location)}" title="地图"></iframe>`;
+    } else {
+      mapContainer.innerHTML = '<div class="detail-map-placeholder"><i class="fas fa-map-marked-alt"></i><span>暂无位置信息</span></div>';
+    }
+
+    // Flow timeline
+    const flowContainer = document.getElementById('detailFlowTimeline');
+    let flowHtml = '';
+
+    // Add feedback entries from logs
+    if (d.logs && d.logs.length > 0) {
+      d.logs.forEach(log => {
+        const isFeedback = log.action === 'feedback';
+        const dotClass = isFeedback ? 'success' : '';
+        const actionLabel = log.action === 'sign' ? '签收' : '反馈';
+        const statusHtml = isFeedback ? ' <span class="detail-timeline-status">已完成</span>' : '';
+        flowHtml += `
+          <div class="detail-timeline-item">
+            <div class="detail-timeline-dot ${dotClass}"></div>
+            <div class="detail-timeline-title">
+              <span>${actionLabel}</span>
+              <span class="detail-timeline-time">${log.created_at || ''}</span>
+              ${statusHtml}
+            </div>
+            <div class="detail-timeline-content">
+              ${log.handler_name ? `<div class="detail-timeline-row"><div class="detail-timeline-label">${actionLabel}人：</div><div class="detail-timeline-value">${log.handler_name}</div></div>` : ''}
+              ${log.created_at ? `<div class="detail-timeline-row"><div class="detail-timeline-label">${actionLabel}时间：</div><div class="detail-timeline-value">${log.created_at}</div></div>` : ''}
+              ${log.remark ? `<div class="detail-timeline-row"><div class="detail-timeline-label">备注：</div><div class="detail-timeline-value">${log.remark}</div></div>` : ''}
+              ${log.feedback_content ? `<div class="detail-timeline-row"><div class="detail-timeline-label">反馈内容：</div><div class="detail-timeline-value">${log.feedback_content}</div></div>` : ''}
+            </div>
+          </div>`;
+      });
+    }
+
+    // Always add the initial alert entry at the bottom
+    flowHtml += `
+      <div class="detail-timeline-item">
+        <div class="detail-timeline-dot warning"></div>
+        <div class="detail-timeline-title"><span>预警</span></div>
+        <div class="detail-timeline-content">
+          <div class="detail-timeline-row"><div class="detail-timeline-label">预警时间：</div><div class="detail-timeline-value">${d.time || '--'}</div></div>
+          <div class="detail-timeline-row"><div class="detail-timeline-label">抓拍时间：</div><div class="detail-timeline-value">${d.snap_time || d.time || '--'}</div></div>
+          <div class="detail-timeline-row"><div class="detail-timeline-label">抓拍地点：</div><div class="detail-timeline-value">${d.location || '--'}</div></div>
+        </div>
+      </div>`;
+
+    flowContainer.innerHTML = flowHtml;
+
+    // History timeline
+    const historyContainer = document.getElementById('detailHistoryTimeline');
+    if (d.history && d.history.length > 0) {
+      historyContainer.innerHTML = d.history.map(h => {
+        const hSnapSrc = h.bkg_url ? `/proxy-pic?url=${encodeURIComponent(h.bkg_url)}` : '';
+        const hFaceSrc = h.face_pic_url ? `/proxy-pic?url=${encodeURIComponent(h.face_pic_url)}` : '';
+        return `
+          <div class="detail-history-item">
+            <div class="detail-history-dot"></div>
+            <div class="detail-history-body">
+              <div class="detail-history-image-wrap">
+                <div class="detail-history-time-badge">${h.time || '--'}</div>
+                <div class="detail-history-main-image">
+                  ${hSnapSrc ? `<img src="${hSnapSrc}" onerror="this.style.display='none';this.parentElement.textContent='抓拍图'">` : '抓拍图'}
+                </div>
+                <div class="detail-history-location">${h.location || ''}</div>
+              </div>
+              <div class="detail-history-info">
+                <div class="detail-history-result">处置结果：${h.result || '--'}</div>
+                <div class="detail-history-detail">${h.detail || ''}</div>
+              </div>
+            </div>
+          </div>`;
+      }).join('');
+    } else {
+      historyContainer.innerHTML = '<div class="detail-history-empty">暂无历史预警</div>';
+    }
+
+  } catch (e) {
+    console.error('加载预警详情失败:', e);
+    alert('加载预警详情失败');
+    closeAlertDetail();
+  }
+}
+
+function closeAlertDetail() {
+  document.getElementById('alertDetailOverlay').classList.remove('show');
+  currentDetailDbId = null;
+}
+
+function handleSecondaryAlert() {
+  if (!currentDetailDbId) return;
+  alert('二次预警功能开发中');
 }

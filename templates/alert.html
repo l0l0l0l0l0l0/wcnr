@@ -212,6 +212,84 @@
 
   </div>
 
+  <!-- Alert Detail Modal -->
+  <div class="modal-overlay" id="alertDetailOverlay">
+    <div class="modal alert-detail-modal">
+      <div class="modal-header">
+        <h3>预警详情</h3>
+        <button class="modal-close" onclick="closeAlertDetail()"><i class="fas fa-xmark"></i></button>
+      </div>
+      <div class="alert-detail-body">
+        <!-- Left: images -->
+        <div class="detail-left">
+          <div class="detail-image-tabs">
+            <div class="detail-image-tab active" data-tab="face" onclick="switchDetailImageTab('face')">抓拍人脸</div>
+            <div class="detail-image-tab" data-tab="scene" onclick="switchDetailImageTab('scene')">抓拍场景</div>
+          </div>
+          <div class="detail-image-content">
+            <div class="detail-image-box">
+              <div class="detail-image-label">抓拍图片</div>
+              <div class="detail-image-placeholder" id="detailSnapImg"><i class="fas fa-camera"></i><span>抓拍图片</span></div>
+            </div>
+            <div class="detail-image-box">
+              <div class="detail-image-label">库对比图</div>
+              <div class="detail-image-placeholder" id="detailFaceImg"><i class="fas fa-user"></i><span>库对比图</span></div>
+            </div>
+          </div>
+        </div>
+        <!-- Right: tabs -->
+        <div class="detail-right">
+          <div class="detail-right-tabs">
+            <div class="detail-right-tab active" data-tab="basic" onclick="switchDetailRightTab('basic')">基本信息</div>
+            <div class="detail-right-tab" data-tab="flow" onclick="switchDetailRightTab('flow')">预警流转</div>
+            <div class="detail-right-tab" data-tab="history" onclick="switchDetailRightTab('history')">历史预警</div>
+          </div>
+          <div class="detail-right-content">
+            <!-- 基本信息 -->
+            <div class="detail-tab-pane active" id="detailTabBasic">
+              <div class="detail-info-item"><div class="detail-info-label">相似度：</div><div class="detail-info-value"><span class="detail-similarity" id="detailSimilarity">--</span></div></div>
+              <div class="detail-info-item"><div class="detail-info-label">比对库：</div><div class="detail-info-value" id="detailLib">--</div></div>
+              <div class="detail-info-item"><div class="detail-info-label">姓名：</div><div class="detail-info-value" id="detailName">--</div></div>
+              <div class="detail-info-item"><div class="detail-info-label">证件：</div><div class="detail-info-value" id="detailIdCard">--</div></div>
+              <div class="detail-info-item"><div class="detail-info-label">性别：</div><div class="detail-info-value" id="detailGender">--</div></div>
+              <div class="detail-info-item"><div class="detail-info-label">人员标签：</div><div class="detail-info-value" id="detailTags">--</div></div>
+              <div class="detail-info-item"><div class="detail-info-label">预警时间：</div><div class="detail-info-value" id="detailTime">--</div></div>
+              <div class="detail-info-item"><div class="detail-info-label">抓拍时间：</div><div class="detail-info-value" id="detailSnapTime">--</div></div>
+              <div class="detail-info-item"><div class="detail-info-label">抓拍地点：</div><div class="detail-info-value" id="detailLocation">--</div></div>
+              <div class="detail-map-container" id="detailMapContainer">
+                <div class="detail-map-placeholder"><i class="fas fa-map-marked-alt"></i><span>地图加载中...</span></div>
+              </div>
+            </div>
+            <!-- 预警流转 -->
+            <div class="detail-tab-pane" id="detailTabFlow">
+              <div class="detail-timeline" id="detailFlowTimeline">
+                <div class="detail-timeline-item">
+                  <div class="detail-timeline-dot warning"></div>
+                  <div class="detail-timeline-title"><span>预警</span></div>
+                  <div class="detail-timeline-content">
+                    <div class="detail-timeline-row"><div class="detail-timeline-label">预警时间：</div><div class="detail-timeline-value" id="flowAlertTime">--</div></div>
+                    <div class="detail-timeline-row"><div class="detail-timeline-label">抓拍时间：</div><div class="detail-timeline-value" id="flowSnapTime">--</div></div>
+                    <div class="detail-timeline-row"><div class="detail-timeline-label">抓拍地点：</div><div class="detail-timeline-value" id="flowLocation">--</div></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <!-- 历史预警 -->
+            <div class="detail-tab-pane" id="detailTabHistory">
+              <div class="detail-history-timeline" id="detailHistoryTimeline">
+                <div class="detail-history-empty">暂无历史预警</div>
+              </div>
+            </div>
+          </div>
+          <div class="detail-right-footer">
+            <button class="btn btn-primary" onclick="handleSecondaryAlert()">二次预警</button>
+            <button class="btn btn-outline" onclick="closeAlertDetail()">关闭</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Alert Process Modal -->
   <div class="modal-overlay" id="alertModalOverlay">
     <div class="modal alert-modal">

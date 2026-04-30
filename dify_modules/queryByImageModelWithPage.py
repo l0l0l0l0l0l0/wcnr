@@ -101,6 +101,7 @@ def query_face_by_image(
     try:
         response = requests.post(url, headers=headers, json=payload, timeout=30, verify=False)
         response.raise_for_status()
+        response.encoding = 'utf-8'
         response_data = response.json()
         logger.info(f"响应状态码: {response.status_code}")
         logger.debug(f"响应内容: {json.dumps(response_data, indent=2, ensure_ascii=False)}")
