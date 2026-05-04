@@ -80,7 +80,7 @@ def create_app() -> FastAPI:
         app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
 
     # 注册路由
-    from routers import pages, alerts, controls, reports, clues, dify, system, auth, users, data_import, population, cases, ai_portrait
+    from routers import pages, alerts, controls, reports, clues, dify, system, auth, users, data_import, population, cases, ai_report
     app.include_router(pages.router)
     app.include_router(alerts.router)
     app.include_router(controls.router)
@@ -93,7 +93,7 @@ def create_app() -> FastAPI:
     app.include_router(data_import.router)
     app.include_router(population.router)
     app.include_router(cases.router)
-    app.include_router(ai_portrait.router)
+    app.include_router(ai_report.router)
 
     # 异常处理
     from app.exception_handlers import register_handlers
