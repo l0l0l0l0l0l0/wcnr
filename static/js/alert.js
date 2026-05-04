@@ -1,3 +1,12 @@
+function escapeHtml(str) {
+  if (!str) return '';
+  return str.toString()
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
 let currentPage = 1;
 let currentPerPage = 20;
 let totalPages = 1;
@@ -135,8 +144,9 @@ function renderCalendar() {
         <button class="cal-shortcut" onclick="calShortcut('today')">今天</button>
         <button class="cal-shortcut" onclick="calShortcut('week')">本周</button>
         <button class="cal-shortcut" onclick="calShortcut('month')">本月</button>
+        <button class="cal-shortcut" onclick="clearDateRange()">清除</button>
       </div>
-      <button class="cal-confirm-btn${(!calState.rangeStart || !calState.rangeEnd) ? ' disabled' : ''}" ${(!calState.rangeStart || !calState.rangeEnd) ? 'disabled' : ''} onclick="confirmDateRange()">确定</button>
+      <button class="cal-confirm-btn" onclick="confirmDateRange()">确定</button>
     </div>`;
 
   popup.innerHTML = html;
@@ -200,6 +210,17 @@ function confirmDateRange() {
     dateEnd.value = formatCalDate(calState.rangeStart);
   }
   closeCalendar();
+  loadAlerts(1, currentPerPage);
+}
+
+function clearDateRange() {
+  document.getElementById('dateStart').value = '';
+  document.getElementById('dateEnd').value = '';
+  calState.rangeStart = null;
+  calState.rangeEnd = null;
+  calState.selecting = false;
+  closeCalendar();
+  loadAlerts(1, currentPerPage);
 }
 
 /* ===== TIME PERIOD ===== */
@@ -247,6 +268,7 @@ function onTimePeriodChange() {
     hourGroup.style.display = 'none';
     minuteGroup.style.display = 'flex';
   }
+  loadAlerts(1, currentPerPage);
 }
 
 function initDatePickers() {
@@ -261,11 +283,11 @@ function initDatePickers() {
   document.getElementById('timePeriod').addEventListener('change', onTimePeriodChange);
   initTimePeriod();
 
-  const today = formatCalDate(new Date());
-  dateStart.value = today;
-  dateEnd.value = today;
-  calState.rangeStart = new Date();
-  calState.rangeEnd = new Date();
+  // Auto-reload when time selects change
+  ['hourStart', 'hourEnd', 'minuteStart', 'minuteEnd'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('change', () => loadAlerts(1, currentPerPage));
+  });
 }
 
 async function loadStats() {
@@ -295,6 +317,26 @@ async function loadAlerts(page = 1, perPage = 20) {
     const status = document.querySelector('.filter-select option:checked')?.textContent;
     if (keyword) params.append('keyword', keyword);
     if (status && status !== '全部') params.append('status', status);
+
+    // Date range filter
+    const dateStart = document.getElementById('dateStart')?.value;
+    const dateEnd = document.getElementById('dateEnd')?.value;
+    if (dateStart) params.append('date_start', dateStart);
+    if (dateEnd) params.append('date_end', dateEnd);
+
+    // Time period filter
+    const timePeriod = document.getElementById('timePeriod')?.value;
+    if (timePeriod === 'hour') {
+      const hourStart = document.getElementById('hourStart')?.value;
+      const hourEnd = document.getElementById('hourEnd')?.value;
+      if (hourStart) params.append('hour_start', hourStart);
+      if (hourEnd) params.append('hour_end', hourEnd);
+    } else if (timePeriod === 'minute') {
+      const minuteStart = document.getElementById('minuteStart')?.value;
+      const minuteEnd = document.getElementById('minuteEnd')?.value;
+      if (minuteStart) params.append('minute_start', minuteStart);
+      if (minuteEnd) params.append('minute_end', minuteEnd);
+    }
 
     const res = await Auth.authFetch(`${API_BASE}/api/alerts?${params}`);
     const result = await res.json();
@@ -619,7 +661,7 @@ async function openAlertDetail(dbId) {
     document.getElementById('detailLib').textContent = d.control_lib || '--';
     document.getElementById('detailName').textContent = d.name || '--';
     document.getElementById('detailIdCard').innerHTML = (d.person_id_card || '--') +
-      (d.person_id_card ? ' <span class="detail-ai-badge">AI</span>' : '');
+      (d.person_id_card ? ' <span class="detail-ai-badge" onclick="event.stopPropagation();window.location.href=\'/ai-portrait?id_card_number=\' + encodeURIComponent(\'' + escapeHtml(d.person_id_card) + '\')">AI</span>' : '');
     document.getElementById('detailGender').textContent = d.gender || '--';
 
     const tags = d.person_tag ? d.person_tag.split(/[,，、]/).filter(Boolean) : [];

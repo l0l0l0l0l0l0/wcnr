@@ -9,6 +9,16 @@ Auth.requireAuth();
 // Init
 (function init() {
   Auth.initHeader();
+
+  // Auto-search by id_card_number from URL param (e.g. from alert detail AI badge)
+  const urlParams = new URLSearchParams(window.location.search);
+  const idCardFromUrl = urlParams.get('id_card_number');
+  if (idCardFromUrl) {
+    currentKeyword = idCardFromUrl;
+    const searchInput = document.getElementById('searchInput');
+    if (searchInput) searchInput.value = idCardFromUrl;
+  }
+
   loadPersons();
 })();
 
@@ -36,6 +46,16 @@ async function loadPersons() {
     if (result.success && result.data) {
       renderPersonList(result.data);
       renderPagination('pagination', result.data.page, result.data.pages, 'goToPersonPage');
+
+      // Auto-select person if id_card_number was in URL and matches a result
+      const urlParams = new URLSearchParams(window.location.search);
+      const idCardFromUrl = urlParams.get('id_card_number');
+      if (idCardFromUrl && !currentPersonIdCard) {
+        const match = (result.data.items || []).find(p => p.id_card_number === idCardFromUrl);
+        if (match) {
+          selectPerson(match.id_card_number, match.name || '');
+        }
+      }
     } else {
       listEl.innerHTML = '<div class="analysis-placeholder" style="padding:20px;"><span>加载失败</span></div>';
     }
@@ -94,21 +114,46 @@ function selectPerson(idCard, name) {
     }
   });
 
-  analyzePerson(idCard, name);
+  loadArchive(idCard, name);
 }
 
-async function analyzePerson(idCard, name) {
+async function loadArchive(idCard, name) {
   const panel = document.getElementById('analysisPanel');
   panel.innerHTML = `
     <div class="analysis-loading">
       <i class="fas fa-robot"></i>
       <div style="text-align:center;">
-        <div style="font-size:16px;font-weight:600;color:var(--text);margin-bottom:4px;">正在分析 ${escapeHtml(name || '')}</div>
-        <div style="font-size:13px;color:var(--text-muted);">AI 正在聚合多表数据并生成画像，请稍候...</div>
+        <div style="font-size:16px;font-weight:600;color:var(--text);margin-bottom:4px;">正在加载 ${escapeHtml(name || '')} 的AI档案</div>
+        <div style="font-size:13px;color:var(--text-muted);">请稍候...</div>
       </div>
     </div>
   `;
 
+  // Load profile (structured data) first
+  let profileData = null;
+  try {
+    const res = await Auth.authFetch(
+      `${API_BASE}/api/ai-portrait/profile?id_card_number=${encodeURIComponent(idCard)}`
+    );
+    const result = await res.json();
+    if (result.success && result.data) {
+      profileData = result.data;
+      renderArchive(result.data);
+    }
+  } catch (e) {
+    panel.innerHTML = `
+      <div class="analysis-placeholder">
+        <i class="fas fa-exclamation-triangle" style="color:var(--red);"></i>
+        <div style="text-align:center;">
+          <div style="font-size:16px;font-weight:600;color:var(--text);margin-bottom:4px;">档案加载失败</div>
+          <div style="font-size:13px;">${escapeHtml(e.message)}</div>
+        </div>
+      </div>
+    `;
+    return;
+  }
+
+  // Then load AI patrol report
   try {
     const res = await Auth.authFetch(`${API_BASE}/api/ai-portrait/analyze`, {
       method: 'POST',
@@ -118,89 +163,263 @@ async function analyzePerson(idCard, name) {
     const result = await res.json();
 
     if (result.success && result.data) {
-      renderAnalysis(result.data);
+      appendPatrolReport(result.data.analysis);
     } else {
-      panel.innerHTML = `
-        <div class="analysis-placeholder">
-          <i class="fas fa-exclamation-triangle" style="color:var(--orange);"></i>
-          <div style="text-align:center;">
-            <div style="font-size:16px;font-weight:600;color:var(--text);margin-bottom:4px;">分析失败</div>
-            <div style="font-size:13px;">${escapeHtml(result.message || '未知错误')}</div>
-          </div>
-        </div>
-      `;
+      appendPatrolReportError(result.message || '分析失败');
     }
   } catch (e) {
-    panel.innerHTML = `
-      <div class="analysis-placeholder">
-        <i class="fas fa-exclamation-triangle" style="color:var(--red);"></i>
-        <div style="text-align:center;">
-          <div style="font-size:16px;font-weight:600;color:var(--text);margin-bottom:4px;">请求异常</div>
-          <div style="font-size:13px;">${escapeHtml(e.message)}</div>
-        </div>
-      </div>
-    `;
+    appendPatrolReportError(e.message);
   }
 }
 
-function renderAnalysis(data) {
+function renderArchive(data) {
   const panel = document.getElementById('analysisPanel');
-  const summary = data.person_summary || {};
-  const analysisText = data.analysis || '';
+  const basic = data.basic_info || {};
+  const guardians = data.guardians || [];
+  const alertFeedback = data.alert_feedback || [];
 
-  const riskBadge = extractRiskBadge(analysisText);
-  const sections = parseAnalysisSections(analysisText);
+  let html = '<div class="archive-scroll">';
 
-  let sectionsHtml = '';
-  sections.forEach(sec => {
-    sectionsHtml += `
-      <div class="analysis-section">
-        <div class="analysis-section-title"><i class="fas fa-chevron-right"></i>${escapeHtml(sec.title)}</div>
-        <div class="analysis-section-body">${formatText(sec.content)}</div>
-      </div>
-    `;
-  });
+  // Header
+  html += renderArchiveHeader(basic);
 
-  panel.innerHTML = `
-    <div class="analysis-result">
-      <div class="analysis-header">
-        <div class="analysis-header-avatar"><i class="fas fa-user"></i></div>
-        <div class="analysis-header-info">
-          <h2>${escapeHtml(summary.name || '未知')} ${riskBadge}</h2>
-          <div class="analysis-header-meta">
-            <span><i class="fas fa-id-card"></i> ${maskIdCard(summary.id_card_number)}</span>
-            <span><i class="fas fa-venus-mars"></i> ${escapeHtml(summary.gender || '-')}</span>
-            <span><i class="fas fa-birthday-cake"></i> ${escapeHtml(summary.age || '-')}岁</span>
-            <span><i class="fas fa-shield-alt"></i> ${escapeHtml(summary.control_category || '-')}</span>
-            <span><i class="fas fa-building"></i> ${escapeHtml(summary.police_station || '-')}</span>
-          </div>
+  // Section 1: 个人简介
+  html += renderProfileSection(basic, guardians);
+
+  // Section 2: 历史预警反馈信息
+  if (alertFeedback.length > 0) {
+    html += renderAlertFeedbackSection(alertFeedback);
+  }
+
+  // Placeholder for patrol report (will be appended later)
+  html += '<div id="patrolReportContainer"></div>';
+
+  html += '</div>';
+  panel.innerHTML = html;
+}
+
+function renderArchiveHeader(basic) {
+  const riskBadge = extractRiskBadgeFromTag(basic.control_category);
+  const idCard = basic.id_card_number || '';
+  return `
+    <div class="archive-header">
+      <div class="archive-header-avatar"><i class="fas fa-user"></i></div>
+      <div class="archive-header-info">
+        <h2>${escapeHtml(basic.name || '未知')} ${riskBadge}</h2>
+        <div class="archive-header-meta">
+          <span><i class="fas fa-id-card"></i> ${maskIdCard(basic.id_card_number)}</span>
+          <span><i class="fas fa-venus-mars"></i> ${escapeHtml(basic.gender || '-')}</span>
+          <span><i class="fas fa-birthday-cake"></i> ${escapeHtml(basic.age || '-')}岁</span>
+          <span><i class="fas fa-shield-alt"></i> ${escapeHtml(basic.control_category || '-')}</span>
+          <span><i class="fas fa-building"></i> ${escapeHtml(basic.police_station || '-')}</span>
         </div>
       </div>
-      ${sectionsHtml}
+      <a href="/archive-report?id_card_number=${encodeURIComponent(idCard)}" target="_blank" class="btn" style="margin-left:auto;display:inline-flex;align-items:center;gap:6px;padding:8px 14px;background:var(--gov-blue);color:#fff;border-radius:var(--radius);font-size:13px;font-weight:600;text-decoration:none;"
+        title="在新标签页打开独立档案报告页"
+      >
+        <i class="fas fa-file-alt"></i>查看档案报告
+      </a>
     </div>
   `;
 }
 
-function extractRiskBadge(text) {
-  if (/风险等级[：:]\s*高/.test(text) || /高\s*风险/.test(text)) {
-    return '<span class="risk-badge high"><i class="fas fa-exclamation-circle"></i>高风险</span>';
+function renderProfileSection(basic, guardians) {
+  let html = '<div class="archive-section">';
+  html += '<div class="archive-section-title"><i class="fas fa-user-circle"></i>个人简介</div>';
+
+  // Basic info grid
+  const baseFields = [
+    { label: '姓名', key: 'name' },
+    { label: '性别', key: 'gender' },
+    { label: '出生日期', key: 'birth_date' },
+    { label: '年龄', key: 'age', suffix: '岁' },
+    { label: '身份证', key: 'id_card_number' },
+    { label: '籍贯', key: 'native_place' },
+    { label: '户籍地', key: 'household_address' },
+    { label: '居住地', key: 'address' },
+    { label: '学历', key: 'education' },
+    { label: '学校', key: 'school' },
+    { label: '入学时间', key: 'enrollment_date' },
+    { label: '离校时间', key: 'graduation_date' },
+    { label: '所属分局', key: 'subordinate_bureau' },
+    { label: '所属派出所', key: 'police_station' },
+    { label: '人员类型标签', key: 'person_type_tag' },
+  ];
+
+  html += '<div style="margin-bottom:16px;">';
+  html += '<div style="font-size:13px;font-weight:700;color:var(--text-secondary);margin-bottom:10px;">基础信息</div>';
+  html += '<div class="info-grid">';
+  baseFields.forEach(f => {
+    const val = basic[f.key];
+    if (val !== null && val !== undefined && val !== '') {
+      html += `
+        <div class="info-item">
+          <span class="info-label">${f.label}:</span>
+          <span class="info-value">${escapeHtml(val)}${f.suffix || ''}</span>
+        </div>
+      `;
+    }
+  });
+  html += '</div></div>';
+
+  // Guardians
+  if (guardians.length > 0) {
+    html += '<div style="font-size:13px;font-weight:700;color:var(--text-secondary);margin-bottom:10px;">监护人信息</div>';
+    html += '<div class="guardian-wrap">';
+    guardians.forEach(g => {
+      html += `
+        <div class="guardian-card">
+          <div class="guardian-card-title">${escapeHtml(g.guardian_type || '监护人')}</div>
+          ${renderInfoRow('姓名', g.name)}
+          ${renderInfoRow('联系方式', g.contact)}
+          ${renderInfoRow('身份证', g.id_card_number)}
+          ${renderInfoRow('关系', g.relation)}
+          ${renderInfoRow('居住地', g.address)}
+        </div>
+      `;
+    });
+    html += '</div>';
   }
-  if (/风险等级[：:]\s*中/.test(text) || /中\s*风险/.test(text)) {
-    return '<span class="risk-badge medium"><i class="fas fa-exclamation-triangle"></i>中风险</span>';
+
+  // Delivery info
+  if (basic.delivery_time || basic.delivery_unit) {
+    html += '<div style="margin-top:16px;">';
+    html += '<div style="font-size:13px;font-weight:700;color:var(--text-secondary);margin-bottom:10px;">送生信息</div>';
+    html += '<div class="info-grid">';
+    html += renderInfoGridItem('送生时间', basic.delivery_time);
+    html += renderInfoGridItem('送生单位', basic.delivery_unit);
+    html += '</div></div>';
   }
-  if (/风险等级[：:]\s*低/.test(text) || /低\s*风险/.test(text)) {
-    return '<span class="risk-badge low"><i class="fas fa-check-circle"></i>低风险</span>';
+
+  // Other info
+  const otherFields = [
+    { label: '是否严重不良未成年人', key: 'is_serious_bad_minor' },
+    { label: '本人电话', key: 'personal_phone' },
+    { label: '监护人电话', key: 'guardian_phone' },
+    { label: '不良行为记录', key: 'bad_behavior_records' },
+    { label: '飙车炸街行为', key: 'racing_behavior' },
+    { label: '综合分析手机号', key: 'analysis_phone' },
+    { label: '备注', key: 'remarks' },
+  ];
+  const hasOther = otherFields.some(f => {
+    const v = basic[f.key];
+    return v !== null && v !== undefined && v !== '';
+  });
+  if (hasOther) {
+    html += '<div style="margin-top:16px;">';
+    html += '<div style="font-size:13px;font-weight:700;color:var(--text-secondary);margin-bottom:10px;">其他信息</div>';
+    html += '<div class="info-grid">';
+    otherFields.forEach(f => {
+      const val = basic[f.key];
+      if (val !== null && val !== undefined && val !== '') {
+        html += renderInfoGridItem(f.label, val);
+      }
+    });
+    html += '</div></div>';
   }
-  return '';
+
+  html += '</div>';
+  return html;
 }
 
-function parseAnalysisSections(text) {
+function renderInfoRow(label, value) {
+  if (!value) return '';
+  return `
+    <div class="info-item">
+      <span class="info-label">${label}:</span>
+      <span class="info-value">${escapeHtml(value)}</span>
+    </div>
+  `;
+}
+
+function renderInfoGridItem(label, value) {
+  if (!value) return '';
+  return `
+    <div class="info-item">
+      <span class="info-label">${label}:</span>
+      <span class="info-value">${escapeHtml(value)}</span>
+    </div>
+  `;
+}
+
+function renderAlertFeedbackSection(records) {
+  let html = '<div class="archive-section">';
+  html += '<div class="archive-section-title"><i class="fas fa-history"></i>历史预警反馈信息</div>';
+  html += '<div class="alert-feedback-list">';
+  records.forEach(r => {
+    html += `
+      <div class="alert-feedback-item">
+        <div class="alert-feedback-time">${escapeHtml(r.time || '')}</div>
+        <div class="alert-feedback-row">
+          <span class="label">地点:</span>
+          <span class="value">${escapeHtml(r.location || '')}</span>
+        </div>
+        <div class="alert-feedback-row">
+          <span class="label">情况:</span>
+          <span class="value">${escapeHtml(r.situation || '')}</span>
+        </div>
+        <div class="alert-feedback-row">
+          <span class="label">处理:</span>
+          <span class="value">${escapeHtml(r.handling || '')}</span>
+        </div>
+      </div>
+    `;
+  });
+  html += '</div></div>';
+  return html;
+}
+
+function appendPatrolReport(analysisText) {
+  const container = document.getElementById('patrolReportContainer');
+  if (!container) return;
+  container.innerHTML = renderPatrolReport(analysisText);
+}
+
+function appendPatrolReportError(message) {
+  const container = document.getElementById('patrolReportContainer');
+  if (!container) return;
+  container.innerHTML = `
+    <div class="archive-section">
+      <div class="archive-section-title"><i class="fas fa-file-alt"></i>巡逻防范报告</div>
+      <div style="color:var(--text-muted);font-size:13px;padding:20px;text-align:center;">
+        <i class="fas fa-exclamation-triangle" style="color:var(--orange);margin-bottom:8px;display:block;font-size:20px;"></i>
+        报告加载失败: ${escapeHtml(message)}
+      </div>
+    </div>
+  `;
+}
+
+function renderPatrolReport(text) {
+  const sections = parsePatrolReport(text);
+
+  let html = '<div class="archive-section">';
+  html += '<div class="archive-section-title"><i class="fas fa-file-alt"></i>巡逻防范报告</div>';
+
+  if (sections.length === 0) {
+    html += `<div class="report-section-body">${formatText(text)}</div>`;
+  } else {
+    sections.forEach(sec => {
+      html += `
+        <div class="report-section">
+          <div class="report-section-title"><i class="fas fa-chevron-right"></i>${escapeHtml(sec.title)}</div>
+          <div class="report-section-body">${formatText(sec.content)}</div>
+        </div>
+      `;
+    });
+  }
+
+  html += '</div>';
+  return html;
+}
+
+function parsePatrolReport(text) {
   const sections = [];
   const lines = text.split('\n');
   let currentTitle = '';
   let currentContent = [];
 
-  const sectionRegex = /^(\d+[\.．、]|\*\*|##?\s*)\s*(.+)$/;
+  // Match: 一、xxx  二、xxx  ...  五、xxx  or  结论
+  const sectionRegex = /^([一二三四五]|[①②③④⑤]|结论)[、．.\s]+(.+)$/;
 
   lines.forEach(line => {
     const match = line.match(sectionRegex);
@@ -208,7 +427,7 @@ function parseAnalysisSections(text) {
       if (currentTitle) {
         sections.push({ title: currentTitle, content: currentContent.join('\n').trim() });
       }
-      currentTitle = match[2].trim();
+      currentTitle = line.trim();
       currentContent = [];
     } else {
       currentContent.push(line);
@@ -220,10 +439,25 @@ function parseAnalysisSections(text) {
   }
 
   if (sections.length === 0) {
-    sections.push({ title: '分析报告', content: text.trim() });
+    sections.push({ title: '巡逻防范报告', content: text.trim() });
   }
 
   return sections;
+}
+
+function extractRiskBadgeFromTag(category) {
+  if (!category) return '';
+  const c = category.toString();
+  if (c.includes('重点') || c.includes('高危')) {
+    return '<span class="risk-badge high"><i class="fas fa-exclamation-circle"></i>高风险</span>';
+  }
+  if (c.includes('一般')) {
+    return '<span class="risk-badge medium"><i class="fas fa-exclamation-triangle"></i>中风险</span>';
+  }
+  if (c.includes('已撤')) {
+    return '<span class="risk-badge low"><i class="fas fa-check-circle"></i>低风险</span>';
+  }
+  return '';
 }
 
 function formatText(text) {

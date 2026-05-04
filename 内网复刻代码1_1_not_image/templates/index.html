@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI档案</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <header class="page-header">
+            <h1 id="page-title">xxx-AI档案</h1>
+        </header>
+
+        <div class="person-selector">
+            <label>选择人员：</label>
+            <select id="person-select">
+                <option value="">加载中...</option>
+            </select>
+        </div>
+
+        <section class="section">
+            <h2 class="section-title">个人简介</h2>
+
+            <div class="subsection">
+                <h3 class="subsection-title">基础信息</h3>
+                <div class="info-grid" id="basic-info">
+                    <div class="info-row"><span class="label">姓名：</span><span class="value" data-field="name"></span></div>
+                    <div class="info-row"><span class="label">性别：</span><span class="value" data-field="gender"></span></div>
+                    <div class="info-row"><span class="label">出生日期：</span><span class="value" data-field="birth_date"></span></div>
+                    <div class="info-row"><span class="label">年龄：</span><span class="value" data-field="age"></span></div>
+                    <div class="info-row"><span class="label">身份证：</span><span class="value" data-field="id_card"></span></div>
+                    <div class="info-row"><span class="label">籍贯：</span><span class="value" data-field="native_place"></span></div>
+                    <div class="info-row"><span class="label">户籍地：</span><span class="value" data-field="household_address"></span></div>
+                    <div class="info-row"><span class="label">居住地：</span><span class="value" data-field="residence"></span></div>
+                    <div class="info-row"><span class="label">学历：</span><span class="value" data-field="education"></span></div>
+                    <div class="info-row"><span class="label">学校：</span><span class="value" data-field="school"></span></div>
+                    <div class="info-row"><span class="label">入学时间：</span><span class="value" data-field="enrollment_date"></span></div>
+                    <div class="info-row"><span class="label">离校时间：</span><span class="value" data-field="graduation_date"></span></div>
+                    <div class="info-row"><span class="label">所属分局：</span><span class="value" data-field="subordinate_bureau"></span></div>
+                    <div class="info-row"><span class="label">所辖派出所：</span><span class="value" data-field="police_station"></span></div>
+                    <div class="info-row"><span class="label">人员类型标签：</span><span class="value" data-field="person_type_tag"></span></div>
+                </div>
+            </div>
+
+            <div class="subsection">
+                <h3 class="subsection-title">监护人信息</h3>
+                <div id="guardians-info">
+                    <!-- 动态填充 -->
+                </div>
+            </div>
+
+            <div class="subsection">
+                <h3 class="subsection-title">送生信息</h3>
+                <div class="info-grid" id="delivery-info">
+                    <div class="info-row"><span class="label">送生时间：</span><span class="value" data-field="time"></span></div>
+                    <div class="info-row"><span class="label">送生单位：</span><span class="value" data-field="unit"></span></div>
+                </div>
+            </div>
+
+            <div class="subsection">
+                <h3 class="subsection-title">其他信息</h3>
+                <div class="info-grid" id="other-info">
+                    <div class="info-row"><span class="label">是否是严重不良未成年人：</span><span class="value" data-field="is_serious_bad_minor"></span></div>
+                    <div class="info-row"><span class="label">本人电话：</span><span class="value" data-field="personal_phone"></span></div>
+                    <div class="info-row"><span class="label">监护人电话：</span><span class="value" data-field="guardian_phone"></span></div>
+                    <div class="info-row"><span class="label">备注：</span><span class="value" data-field="remarks"></span></div>
+                    <div class="info-row"><span class="label">不良行为记录：</span><span class="value" data-field="bad_behavior_records"></span></div>
+                    <div class="info-row"><span class="label">飙车炸街行为：</span><span class="value" data-field="racing_behavior"></span></div>
+                    <div class="info-row full-width">
+                        <span class="label">如有需要进一步了解的信息，请联系所属派出所或监护人。</span>
+                    </div>
+                    <div class="info-row"><span class="label">综合分析本人手机号：</span><span class="value" data-field="analysis_phone"></span></div>
+                </div>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title">历史预警反馈信息</h2>
+            <div id="alert-records">
+                <!-- 动态填充 -->
+            </div>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title">巡逻防范报告</h2>
+
+            <div class="subsection">
+                <h3 class="subsection-title">一、基本信息</h3>
+                <div class="info-grid" id="report-basic-info">
+                    <div class="info-row"><span class="label">姓名：</span><span class="value" data-field="name"></span></div>
+                    <div class="info-row"><span class="label">性别：</span><span class="value" data-field="gender"></span></div>
+                    <div class="info-row"><span class="label">年龄：</span><span class="value" data-field="age"></span></div>
+                    <div class="info-row"><span class="label">身份证：</span><span class="value" data-field="id_card"></span></div>
+                    <div class="info-row"><span class="label">籍贯：</span><span class="value" data-field="native_place"></span></div>
+                    <div class="info-row"><span class="label">户籍地：</span><span class="value" data-field="household_address"></span></div>
+                    <div class="info-row"><span class="label">居住地：</span><span class="value" data-field="residence"></span></div>
+                    <div class="info-row"><span class="label">学历：</span><span class="value" data-field="education"></span></div>
+                    <div class="info-row"><span class="label">学校：</span><span class="value" data-field="school"></span></div>
+                    <div class="info-row"><span class="label">入学时间：</span><span class="value" data-field="enrollment_date"></span></div>
+                    <div class="info-row"><span class="label">离校时间：</span><span class="value" data-field="graduation_date"></span></div>
+                    <div class="info-row"><span class="label">所属分局：</span><span class="value" data-field="subordinate_bureau"></span></div>
+                    <div class="info-row"><span class="label">所辖派出所：</span><span class="value" data-field="police_station"></span></div>
+                    <div class="info-row"><span class="label">人员类型标签：</span><span class="value" data-field="person_type_tag"></span></div>
+                </div>
+            </div>
+
+            <div class="subsection">
+                <h3 class="subsection-title">二、历史预警记录</h3>
+                <div id="report-history-records">
+                    <!-- 动态填充 -->
+                </div>
+            </div>
+
+            <div class="subsection">
+                <h3 class="subsection-title">三、同行人信息</h3>
+                <div class="text-content" id="companion-info"></div>
+            </div>
+
+            <div class="subsection">
+                <h3 class="subsection-title">四、行为模式和潜在风险</h3>
+                <div class="text-content">
+                    <p><strong>频繁出现在公共场所：</strong><span id="risk-frequent"></span></p>
+                    <p><strong>时间规律：</strong><span id="risk-time"></span></p>
+                    <p><strong>家庭监管不足：</strong><span id="risk-family"></span></p>
+                    <p><strong>潜在风险：</strong><span id="risk-potential"></span></p>
+                </div>
+            </div>
+
+            <div class="subsection">
+                <h3 class="subsection-title">五、巡逻防范建议</h3>
+                <div class="suggestion-list" id="suggestions"></div>
+            </div>
+
+            <div class="subsection">
+                <h3 class="subsection-title">结论</h3>
+                <div class="text-content" id="conclusion"></div>
+            </div>
+        </section>
+    </div>
+
+    <script>
+        let currentPersonIdCard = '';
+
+        async function loadPersons() {
+            try {
+                const res = await fetch('/api/persons');
+                const data = await res.json();
+                if (data.code === 0) {
+                    const select = document.getElementById('person-select');
+                    select.innerHTML = '<option value="">请选择人员</option>';
+                    data.data.forEach(p => {
+                        const option = document.createElement('option');
+                        option.value = p.id_card_number;
+                        option.textContent = `${p.name} (${p.id_card_number})`;
+                        select.appendChild(option);
+                    });
+                    if (data.data.length > 0) {
+                        select.value = data.data[0].id_card_number;
+                        loadPersonDetail(data.data[0].id_card_number);
+                    }
+                    select.addEventListener('change', (e) => {
+                        if (e.target.value) {
+                            loadPersonDetail(e.target.value);
+                        }
+                    });
+                }
+            } catch (e) {
+                console.error('加载人员列表失败:', e);
+            }
+        }
+
+        async function loadPersonDetail(idCard) {
+            currentPersonIdCard = idCard;
+            try {
+                const res = await fetch(`/api/person/${idCard}`);
+                const result = await res.json();
+                if (result.code === 0) {
+                    renderData(result.data);
+                } else {
+                    alert('加载数据失败: ' + result.message);
+                }
+            } catch (e) {
+                console.error('加载人员详情失败:', e);
+            }
+        }
+
+        function renderData(data) {
+            const basic = data.basic_info;
+            const report = data.patrol_report;
+
+            // 更新页面标题
+            document.getElementById('page-title').textContent = `${basic.name}-AI档案`;
+
+            // 基础信息
+            fillFields(document.getElementById('basic-info'), basic);
+
+            // 监护人信息
+            const guardiansContainer = document.getElementById('guardians-info');
+            guardiansContainer.innerHTML = '';
+            if (data.guardians && data.guardians.length > 0) {
+                data.guardians.forEach(g => {
+                    const gDiv = document.createElement('div');
+                    gDiv.className = 'guardian-block';
+                    const type = g.guardian_type || '监护人';
+                    gDiv.innerHTML = `
+                        <div class="info-row"><span class="label">${type}：</span><span class="value">${g.name || 'xxx'}</span></div>
+                        <div class="info-row"><span class="label">联系方式：</span><span class="value">${g.contact || ''}</span></div>
+                        <div class="info-row"><span class="label">身份证：</span><span class="value">${g.id_card_number || ''}</span></div>
+                        <div class="info-row"><span class="label">关系：</span><span class="value">${g.relation || ''}</span></div>
+                        ${g.address ? `<div class="info-row"><span class="label">居住地：</span><span class="value">${g.address}</span></div>` : ''}
+                    `;
+                    guardiansContainer.appendChild(gDiv);
+                });
+            } else {
+                guardiansContainer.innerHTML = '<div class="info-row"><span class="value">暂无监护人信息</span></div>';
+            }
+
+            // 送生信息
+            fillFields(document.getElementById('delivery-info'), data.delivery_info);
+
+            // 其他信息
+            fillFields(document.getElementById('other-info'), data.other_info);
+
+            // 历史预警反馈信息
+            const alertContainer = document.getElementById('alert-records');
+            alertContainer.innerHTML = '';
+            if (data.alert_records && data.alert_records.length > 0) {
+                data.alert_records.forEach((r, idx) => {
+                    const rDiv = document.createElement('div');
+                    rDiv.className = 'alert-record';
+                    rDiv.innerHTML = `
+                        <div class="info-row"><span class="label">${r.time}</span></div>
+                        <div class="info-row indent"><span class="label">地点：</span><span class="value">${r.location}</span></div>
+                        <div class="info-row indent"><span class="label">情况：</span><span class="value">${r.situation}</span></div>
+                        <div class="info-row indent"><span class="label">处理：</span><span class="value">${r.detail}</span></div>
+                    `;
+                    alertContainer.appendChild(rDiv);
+                });
+            } else {
+                alertContainer.innerHTML = '<div class="info-row"><span class="value">暂无历史预警记录</span></div>';
+            }
+
+            // 巡逻防范报告 - 基本信息
+            fillFields(document.getElementById('report-basic-info'), report.basic_info);
+
+            // 巡逻防范报告 - 历史预警记录
+            const reportHistoryContainer = document.getElementById('report-history-records');
+            reportHistoryContainer.innerHTML = '';
+            if (report.history_records && report.history_records.length > 0) {
+                report.history_records.forEach(r => {
+                    const rDiv = document.createElement('div');
+                    rDiv.className = 'history-record';
+                    rDiv.innerHTML = `
+                        <div class="info-row"><span class="label">${r.time}</span></div>
+                        <div class="info-row indent"><span class="label">地点：</span><span class="value">${r.location}</span></div>
+                        <div class="info-row indent"><span class="label">情况：</span><span class="value">${r.situation}</span></div>
+                        <div class="info-row indent"><span class="label">处理：</span><span class="value">${r.action}</span></div>
+                    `;
+                    reportHistoryContainer.appendChild(rDiv);
+                });
+            }
+
+            // 同行人信息
+            document.getElementById('companion-info').textContent = report.companion_info;
+
+            // 行为模式和潜在风险
+            document.getElementById('risk-frequent').textContent = report.risk_analysis.frequent_places;
+            document.getElementById('risk-time').textContent = report.risk_analysis.time_pattern;
+            document.getElementById('risk-family').textContent = report.risk_analysis.family_supervision;
+            document.getElementById('risk-potential').textContent = report.risk_analysis.potential_risk;
+
+            // 巡逻防范建议
+            const sugContainer = document.getElementById('suggestions');
+            sugContainer.innerHTML = '';
+            report.suggestions.forEach((s, idx) => {
+                const p = document.createElement('p');
+                const labels = ['加强重点区域巡逻：', '社区联动：', '家庭监督：', '心理辅导：', '定期回访：'];
+                p.innerHTML = `<strong>${labels[idx] || '建议：'}</strong>${s}`;
+                sugContainer.appendChild(p);
+            });
+
+            // 结论
+            document.getElementById('conclusion').textContent = report.conclusion;
+        }
+
+        function fillFields(container, data) {
+            if (!data) return;
+            container.querySelectorAll('[data-field]').forEach(el => {
+                const field = el.getAttribute('data-field');
+                if (data[field] !== undefined && data[field] !== null && data[field] !== '') {
+                    el.textContent = data[field];
+                } else {
+                    el.textContent = 'xxx';
+                }
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', loadPersons);
+    </script>
+</body>
+</html>

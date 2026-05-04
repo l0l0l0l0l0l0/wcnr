@@ -1,0 +1,692 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI档案报告</title>
+  <link rel="stylesheet" href="/static/css/font-awesome.min.css">
+  <link rel="stylesheet" href="/static/css/shared.css">
+  <script src="/static/js/auth.js"></script>
+  <style>
+    body {
+      background: #f5f6f7;
+    }
+
+    .archive-container {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 32px 24px 48px;
+    }
+
+    .archive-paper {
+      background: #fff;
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow);
+      padding: 40px 48px;
+    }
+
+    .archive-title {
+      text-align: center;
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 28px;
+      padding-bottom: 16px;
+      border-bottom: 2px solid var(--gov-blue);
+    }
+
+    .archive-section {
+      margin-bottom: 24px;
+    }
+
+    .archive-section-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 14px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--border-light);
+    }
+
+    .archive-subtitle {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text-secondary);
+      margin-bottom: 10px;
+    }
+
+    .info-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px 24px;
+      margin-bottom: 12px;
+    }
+
+    .info-item {
+      display: flex;
+      gap: 6px;
+      font-size: 13px;
+      line-height: 1.7;
+    }
+
+    .info-label {
+      color: var(--text-muted);
+      flex-shrink: 0;
+      min-width: 90px;
+    }
+
+    .info-value {
+      color: var(--text);
+      font-weight: 500;
+    }
+
+    .guardian-wrap {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .guardian-card {
+      flex: 1;
+      min-width: 280px;
+      background: #fafbfc;
+      border-radius: var(--radius);
+      padding: 14px 16px;
+    }
+
+    .guardian-card-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--gov-blue);
+      margin-bottom: 8px;
+    }
+
+    .guardian-card .info-item {
+      margin-bottom: 3px;
+    }
+
+    .feedback-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .feedback-item {
+      background: #fafbfc;
+      border-radius: var(--radius);
+      padding: 12px 14px;
+    }
+
+    .feedback-time {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--gov-blue);
+      margin-bottom: 6px;
+    }
+
+    .feedback-row {
+      display: flex;
+      gap: 6px;
+      font-size: 13px;
+      line-height: 1.7;
+    }
+
+    .feedback-row .label {
+      color: var(--text-muted);
+      flex-shrink: 0;
+      min-width: 40px;
+    }
+
+    .feedback-row .value {
+      color: var(--text);
+    }
+
+    .patrol-section {
+      margin-bottom: 16px;
+    }
+
+    .patrol-section-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .patrol-section-body {
+      font-size: 13px;
+      line-height: 2;
+      color: var(--text-secondary);
+      background: #fafbfc;
+      border-radius: var(--radius);
+      padding: 14px 16px;
+      white-space: pre-wrap;
+    }
+
+    .toolbar {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 16px;
+      border-radius: var(--radius);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      transition: all 0.2s;
+    }
+
+    .btn-primary {
+      background: var(--gov-blue);
+      color: #fff;
+    }
+
+    .btn-primary:hover {
+      background: #142d55;
+    }
+
+    .btn-secondary {
+      background: var(--white);
+      color: var(--text-secondary);
+      border: 1px solid var(--border);
+    }
+
+    .btn-secondary:hover {
+      background: var(--gov-bg);
+    }
+
+    .loading-wrap {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 80px 40px;
+      gap: 16px;
+      color: var(--text-muted);
+    }
+
+    .loading-wrap i {
+      font-size: 32px;
+      color: var(--gov-blue-light);
+      animation: spin 1.5s linear infinite;
+    }
+
+    @keyframes spin { 100% { transform: rotate(360deg); } }
+
+    .error-wrap {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 80px 40px;
+      gap: 12px;
+      color: var(--text-muted);
+      text-align: center;
+    }
+
+    .error-wrap i {
+      font-size: 40px;
+      color: var(--orange);
+    }
+
+    /* Print styles */
+    @media print {
+      body { background: #fff; }
+      .header { display: none; }
+      .toolbar { display: none; }
+      .archive-container { padding: 0; max-width: 100%; }
+      .archive-paper {
+        box-shadow: none;
+        border-radius: 0;
+        padding: 0;
+      }
+      .archive-title {
+        border-bottom-color: #000;
+      }
+      .feedback-item, .patrol-section-body, .guardian-card {
+        background: #fff;
+        border: 1px solid #ddd;
+      }
+    }
+
+    @media (max-width: 768px) {
+      .archive-paper { padding: 24px; }
+      .info-grid { grid-template-columns: 1fr; }
+      .guardian-card { min-width: 100%; }
+    }
+  </style>
+</head>
+<body data-page="archive_report">
+
+  <header class="header">
+    <div class="header-left">
+      <div class="logo">
+        <div class="logo-icon"><img src="/static/img/1.png" alt="logo"></div>
+        <div class="logo-text">重点人管控</div>
+      </div>
+      <nav class="nav-menu" id="topNav">
+        <a class="nav-item" data-nav="control" href="/control"><i class="fas fa-bullhorn"></i>布控管理</a>
+        <a class="nav-item" data-nav="alert" href="/"><i class="fas fa-star" style="color:#facc15;"></i>预警中心</a>
+        <a class="nav-item" data-nav="report" href="/report"><i class="fas fa-chart-bar"></i>统计报表</a>
+        <a class="nav-item" data-nav="ai_portrait" href="/ai-portrait"><i class="fas fa-robot"></i>AI画像</a>
+        <a class="nav-item active" data-nav="archive_report" href="/archive-report"><i class="fas fa-file-alt"></i>AI档案</a>
+        <a class="nav-item" id="navUsers" href="/users" style="display:none"><i class="fas fa-users-cog"></i>用户管理</a>
+      </nav>
+    </div>
+    <div class="header-right">
+      <div class="alert-badge">
+        <i class="fas fa-bell" style="font-size:11px;"></i>
+        <span>预警</span>
+      </div>
+      <div class="header-stat"><i class="fas fa-chart-bar" style="font-size:11px; color:rgba(255,255,255,0.6); margin-right:4px;"></i>今日总访问量: <span>125</span></div>
+      <div class="header-stat">今日登录人数: <span>43</span></div>
+      <div class="header-stat">在线人数: <span>28</span></div>
+      <div class="user-menu" id="userMenu" style="position:relative;">
+        <div class="user-avatar" onclick="toggleUserDropdown()"><i class="fas fa-user"></i></div>
+        <div class="user-dropdown" id="userDropdown" style="display:none;position:absolute;right:0;top:44px;background:var(--white);border-radius:var(--radius);box-shadow:0 8px 24px rgba(0,0,0,0.12);min-width:180px;border:1px solid var(--border-light);z-index:1001;">
+          <div style="padding:12px 16px;display:flex;flex-direction:column;gap:4px;">
+            <span id="dropdownUsername" style="font-weight:600;color:var(--text);font-size:14px;">--</span>
+            <span id="dropdownRole" style="font-size:11px;color:var(--gov-blue-light);font-weight:500;">--</span>
+          </div>
+          <div style="height:1px;background:var(--border-light);"></div>
+          <a href="/settings" style="display:flex;align-items:center;gap:8px;padding:10px 16px;color:var(--text-secondary);cursor:pointer;font-size:13px;text-decoration:none;"><i class="fas fa-cog"></i>设置</a>
+          <div style="height:1px;background:var(--border-light);"></div>
+          <div onclick="Auth.logout()" style="display:flex;align-items:center;gap:8px;padding:10px 16px;color:var(--text-secondary);cursor:pointer;font-size:13px;"><i class="fas fa-sign-out-alt"></i>退出登录</div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <div class="main">
+    <div class="archive-container">
+      <div class="toolbar">
+        <button class="btn btn-secondary" onclick="history.back()"><i class="fas fa-arrow-left"></i>返回</button>
+        <button class="btn btn-primary" onclick="window.print()"><i class="fas fa-print"></i>打印</button>
+      </div>
+      <div class="archive-paper" id="archivePaper">
+        <div class="loading-wrap" id="loadingWrap">
+          <i class="fas fa-spinner"></i>
+          <span>正在加载档案...</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/static/js/shared.js"></script>
+  <script>
+    const API_BASE = '';
+    const FETCH_TIMEOUT = 30000;
+
+    Auth.requireAuth();
+    Auth.initHeader();
+
+    (function init() {
+      const urlParams = new URLSearchParams(window.location.search);
+      const idCard = urlParams.get('id_card_number');
+      if (!idCard) {
+        renderSearchBox();
+        return;
+      }
+      loadArchive(idCard);
+    })();
+
+    function renderSearchBox() {
+      const paper = document.getElementById('archivePaper');
+      paper.innerHTML = `
+        <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:80px 40px;gap:16px;">
+          <i class="fas fa-file-alt" style="font-size:48px;color:var(--border);"></i>
+          <div style="font-size:16px;font-weight:600;color:var(--text);">请输入身份证号查看AI档案</div>
+          <div style="display:flex;gap:8px;width:100%;max-width:420px;margin-top:8px;">
+            <input id="searchIdCard" type="text" placeholder="请输入身份证号" maxlength="18"
+              style="flex:1;padding:10px 14px;border:1px solid var(--border);border-radius:var(--radius);font-size:14px;outline:none;"
+              onkeydown="if(event.key==='Enter')onSearchArchive()">
+            <button class="btn btn-primary" onclick="onSearchArchive()">
+              <i class="fas fa-search"></i>查询
+            </button>
+          </div>
+        </div>
+      `;
+      const input = document.getElementById('searchIdCard');
+      if (input) input.focus();
+    }
+
+    function onSearchArchive() {
+      const val = document.getElementById('searchIdCard').value.trim();
+      if (!val) return;
+      window.location.href = `/archive-report?id_card_number=${encodeURIComponent(val)}`;
+    }
+
+    async function fetchWithTimeout(url, opts = {}, timeout = FETCH_TIMEOUT) {
+      const controller = new AbortController();
+      const id = setTimeout(() => controller.abort(), timeout);
+      try {
+        const res = await Auth.authFetch(url, { ...opts, signal: controller.signal });
+        clearTimeout(id);
+        return res;
+      } catch (e) {
+        clearTimeout(id);
+        if (e.name === 'AbortError') throw new Error('请求超时，请稍后重试');
+        throw e;
+      }
+    }
+
+    async function loadArchive(idCard) {
+      const paper = document.getElementById('archivePaper');
+      paper.innerHTML = `
+        <div class="loading-wrap">
+          <i class="fas fa-spinner"></i>
+          <span>正在加载档案...</span>
+        </div>
+      `;
+
+      let profileData = null;
+      try {
+        const res = await fetchWithTimeout(
+          `${API_BASE}/api/ai-portrait/profile?id_card_number=${encodeURIComponent(idCard)}`
+        );
+        if (!res.ok) {
+          const text = await res.text().catch(() => '');
+          showError(`服务器错误 (${res.status}): ${text || res.statusText}`);
+          return;
+        }
+        let result;
+        try {
+          result = await res.json();
+        } catch (jsonErr) {
+          const text = await res.text().catch(() => '');
+          showError('服务器返回了非预期的数据格式: ' + (text || jsonErr.message));
+          return;
+        }
+        if (result.success && result.data) {
+          profileData = result.data;
+        } else {
+          showError(result.message || '档案加载失败');
+          return;
+        }
+      } catch (e) {
+        showError(e.message || '网络请求异常');
+        return;
+      }
+
+      renderArchive(profileData);
+
+      try {
+        const res = await fetchWithTimeout(`${API_BASE}/api/ai-portrait/analyze`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id_card_number: idCard })
+        });
+        if (!res.ok) return;
+        let result;
+        try {
+          result = await res.json();
+        } catch { return; }
+        if (result.success && result.data) {
+          appendPatrolReport(result.data.analysis);
+        }
+      } catch (e) {
+        // Silently ignore patrol report errors
+      }
+    }
+
+    function renderArchive(data) {
+      const paper = document.getElementById('archivePaper');
+      const basic = data.basic_info || {};
+      const guardians = data.guardians || [];
+      const alertFeedback = data.alert_feedback || [];
+
+      const name = basic.name || '未知';
+
+      let html = `<div class="archive-title">${escapeHtml(name)}-AI档案</div>`;
+
+      html += renderProfileSection(basic, guardians);
+
+      if (alertFeedback.length > 0) {
+        html += renderAlertFeedbackSection(alertFeedback);
+      }
+
+      html += '<div id="patrolReportContainer"></div>';
+
+      paper.innerHTML = html;
+    }
+
+    function renderProfileSection(basic, guardians) {
+      let html = '<div class="archive-section">';
+      html += '<div class="archive-section-title">个人简介</div>';
+
+      const baseFields = [
+        { label: '姓名', key: 'name' },
+        { label: '性别', key: 'gender' },
+        { label: '出生日期', key: 'birth_date' },
+        { label: '年龄', key: 'age', suffix: '岁' },
+        { label: '身份证', key: 'id_card_number' },
+        { label: '籍贯', key: 'native_place' },
+        { label: '户籍地', key: 'household_address' },
+        { label: '居住地', key: 'address' },
+        { label: '学历', key: 'education' },
+        { label: '学校', key: 'school' },
+        { label: '入学时间', key: 'enrollment_date' },
+        { label: '离校时间', key: 'graduation_date' },
+        { label: '所属分局', key: 'subordinate_bureau' },
+        { label: '所属派出所', key: 'police_station' },
+        { label: '人员类型标签', key: 'person_type_tag' },
+      ];
+
+      html += '<div class="archive-subtitle">基础信息</div>';
+      html += '<div class="info-grid">';
+      baseFields.forEach(f => {
+        const val = basic[f.key];
+        if (val !== null && val !== undefined && val !== '') {
+          html += `
+            <div class="info-item">
+              <span class="info-label">${f.label}:</span>
+              <span class="info-value">${escapeHtml(val)}${f.suffix || ''}</span>
+            </div>
+          `;
+        }
+      });
+      html += '</div>';
+
+      if (guardians.length > 0) {
+        html += '<div class="archive-subtitle" style="margin-top:16px;">监护人信息</div>';
+        html += '<div class="guardian-wrap">';
+        guardians.forEach(g => {
+          html += `
+            <div class="guardian-card">
+              <div class="guardian-card-title">${escapeHtml(g.guardian_type || '监护人')}</div>
+              ${renderInfoRow('姓名', g.name)}
+              ${renderInfoRow('联系方式', g.contact)}
+              ${renderInfoRow('身份证', g.id_card_number)}
+              ${renderInfoRow('关系', g.relation)}
+              ${renderInfoRow('居住地', g.address)}
+            </div>
+          `;
+        });
+        html += '</div>';
+      }
+
+      if (basic.delivery_time || basic.delivery_unit) {
+        html += '<div class="archive-subtitle" style="margin-top:16px;">送生信息</div>';
+        html += '<div class="info-grid">';
+        html += renderInfoGridItem('送生时间', basic.delivery_time);
+        html += renderInfoGridItem('送生单位', basic.delivery_unit);
+        html += '</div>';
+      }
+
+      const otherFields = [
+        { label: '是否严重不良未成年人', key: 'is_serious_bad_minor' },
+        { label: '本人电话', key: 'personal_phone' },
+        { label: '监护人电话', key: 'guardian_phone' },
+        { label: '不良行为记录', key: 'bad_behavior_records' },
+        { label: '飙车炸街行为', key: 'racing_behavior' },
+        { label: '备注', key: 'remarks' },
+        { label: '综合分析本人手机号', key: 'analysis_phone' },
+      ];
+      const hasOther = otherFields.some(f => {
+        const v = basic[f.key];
+        return v !== null && v !== undefined && v !== '';
+      });
+      if (hasOther) {
+        html += '<div class="archive-subtitle" style="margin-top:16px;">其他信息</div>';
+        html += '<div class="info-grid">';
+        otherFields.forEach(f => {
+          const val = basic[f.key];
+          if (val !== null && val !== undefined && val !== '') {
+            html += renderInfoGridItem(f.label, val);
+          }
+        });
+        html += '</div>';
+      }
+
+      html += '</div>';
+      return html;
+    }
+
+    function renderInfoRow(label, value) {
+      if (!value) return '';
+      return `
+        <div class="info-item">
+          <span class="info-label">${label}:</span>
+          <span class="info-value">${escapeHtml(value)}</span>
+        </div>
+      `;
+    }
+
+    function renderInfoGridItem(label, value) {
+      if (!value) return '';
+      return `
+        <div class="info-item">
+          <span class="info-label">${label}:</span>
+          <span class="info-value">${escapeHtml(value)}</span>
+        </div>
+      `;
+    }
+
+    function renderAlertFeedbackSection(records) {
+      let html = '<div class="archive-section">';
+      html += '<div class="archive-section-title">历史预警反馈信息</div>';
+      html += '<div class="feedback-list">';
+      records.forEach(r => {
+        html += `
+          <div class="feedback-item">
+            <div class="feedback-time">${escapeHtml(r.time || '')}</div>
+            <div class="feedback-row">
+              <span class="label">地点:</span>
+              <span class="value">${escapeHtml(r.location || '')}</span>
+            </div>
+            <div class="feedback-row">
+              <span class="label">情况:</span>
+              <span class="value">${escapeHtml(r.situation || '')}</span>
+            </div>
+            <div class="feedback-row">
+              <span class="label">处理:</span>
+              <span class="value">${escapeHtml(r.handling || '')}</span>
+            </div>
+          </div>
+        `;
+      });
+      html += '</div></div>';
+      return html;
+    }
+
+    function appendPatrolReport(analysisText) {
+      const container = document.getElementById('patrolReportContainer');
+      if (!container) return;
+      container.innerHTML = renderPatrolReport(analysisText);
+    }
+
+    function renderPatrolReport(text) {
+      const sections = parsePatrolReport(text);
+
+      let html = '<div class="archive-section">';
+      html += '<div class="archive-section-title">巡逻防范报告</div>';
+
+      if (sections.length === 0) {
+        html += `<div class="patrol-section-body">${formatText(text)}</div>`;
+      } else {
+        sections.forEach(sec => {
+          html += `
+            <div class="patrol-section">
+              <div class="patrol-section-title">${escapeHtml(sec.title)}</div>
+              <div class="patrol-section-body">${formatText(sec.content)}</div>
+            </div>
+          `;
+        });
+      }
+
+      html += '</div>';
+      return html;
+    }
+
+    function parsePatrolReport(text) {
+      const sections = [];
+      const lines = text.split('\n');
+      let currentTitle = '';
+      let currentContent = [];
+
+      const sectionRegex = /^([一二三四五]|[①②③④⑤]|结论)[、．.\s]+(.+)$/;
+
+      lines.forEach(line => {
+        const match = line.match(sectionRegex);
+        if (match) {
+          if (currentTitle) {
+            sections.push({ title: currentTitle, content: currentContent.join('\n').trim() });
+          }
+          currentTitle = line.trim();
+          currentContent = [];
+        } else {
+          currentContent.push(line);
+        }
+      });
+
+      if (currentTitle) {
+        sections.push({ title: currentTitle, content: currentContent.join('\n').trim() });
+      }
+
+      if (sections.length === 0) {
+        sections.push({ title: '巡逻防范报告', content: text.trim() });
+      }
+
+      return sections;
+    }
+
+    function formatText(text) {
+      if (!text) return '';
+      return escapeHtml(text)
+        .replace(/\n/g, '<br>')
+        .replace(/(-\s+)/g, '&bull; ');
+    }
+
+    function showError(message) {
+      document.getElementById('archivePaper').innerHTML = `
+        <div class="error-wrap">
+          <i class="fas fa-exclamation-triangle"></i>
+          <div style="font-size:16px;font-weight:600;color:var(--text);">${escapeHtml(message)}</div>
+          <button class="btn btn-secondary" onclick="renderSearchBox()" style="margin-top:12px;">
+            <i class="fas fa-arrow-left"></i>返回查询
+          </button>
+        </div>
+      `;
+    }
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return str.toString()
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+  </script>
+</body>
+</html>

@@ -53,3 +53,8 @@ def clues_page():
 @router.get("/ai-portrait", response_class=HTMLResponse)
 def ai_portrait_page():
     return FileResponse(TEMPLATES_DIR / "ai_portrait.html")
+
+
+@router.get("/archive-report", response_class=HTMLResponse)
+def archive_report_page():
+    return FileResponse(TEMPLATES_DIR / "archive_report.html")

@@ -11,21 +11,21 @@
     .ai-layout {
       display: flex;
       gap: 12px;
-      min-height: calc(100vh - 80px);
+      height: calc(100vh - 80px);
     }
-    .ai-sidebar {
+    .ai-sidebar.panel {
       width: 380px;
       flex-shrink: 0;
       display: flex;
       flex-direction: column;
-      gap: 10px;
+      overflow: hidden;
     }
-    .ai-main {
+    .ai-main.panel {
       flex: 1;
       min-width: 0;
       display: flex;
       flex-direction: column;
-      gap: 10px;
+      overflow: hidden;
     }
     .ai-search-bar {
       display: flex;
@@ -39,6 +39,7 @@
       flex: 1;
       overflow-y: auto;
       padding: 0 12px 12px;
+      min-height: 0;
     }
     .person-card {
       background: var(--white);
@@ -109,6 +110,7 @@
       color: var(--text-muted);
       gap: 12px;
       padding: 40px;
+      min-height: 0;
     }
     .analysis-placeholder i {
       font-size: 48px;
@@ -123,6 +125,7 @@
       justify-content: center;
       gap: 16px;
       padding: 40px;
+      min-height: 0;
     }
     .analysis-loading i {
       font-size: 32px;
@@ -131,43 +134,172 @@
     }
     @keyframes spin { 100% { transform: rotate(360deg); } }
 
-    .analysis-result {
+    /* ===== Archive Styles ===== */
+    .archive-scroll {
       flex: 1;
       overflow-y: auto;
       padding: 20px 24px;
+      min-height: 0;
     }
-    .analysis-header {
+
+    .archive-header {
       display: flex;
       align-items: center;
-      gap: 12px;
-      margin-bottom: 20px;
-      padding-bottom: 16px;
+      gap: 16px;
+      margin-bottom: 24px;
+      padding-bottom: 20px;
       border-bottom: 1px solid var(--border-light);
     }
-    .analysis-header-avatar {
-      width: 56px;
-      height: 56px;
+    .archive-header-avatar {
+      width: 64px;
+      height: 64px;
       border-radius: 50%;
       background: linear-gradient(135deg, var(--gov-blue-light), #3b82f6);
       color: #fff;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 20px;
+      font-size: 24px;
       flex-shrink: 0;
     }
-    .analysis-header-info h2 {
-      font-size: 18px;
+    .archive-header-info h2 {
+      font-size: 20px;
       font-weight: 700;
       color: var(--text);
-      margin-bottom: 4px;
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
     }
-    .analysis-header-meta {
-      font-size: 12px;
+    .archive-header-meta {
+      font-size: 13px;
       color: var(--text-muted);
       display: flex;
-      gap: 12px;
+      gap: 14px;
       flex-wrap: wrap;
+    }
+
+    .archive-section {
+      background: var(--white);
+      border: 1px solid var(--border-light);
+      border-radius: var(--radius);
+      padding: 20px;
+      margin-bottom: 16px;
+    }
+    .archive-section-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--gov-blue);
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border-light);
+    }
+    .archive-section-title i {
+      font-size: 14px;
+      color: var(--gov-blue-light);
+    }
+
+    .info-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px 24px;
+    }
+    .info-item {
+      display: flex;
+      gap: 6px;
+      font-size: 13px;
+      line-height: 1.6;
+    }
+    .info-label {
+      color: var(--text-muted);
+      flex-shrink: 0;
+      min-width: 80px;
+    }
+    .info-value {
+      color: var(--text);
+      font-weight: 500;
+    }
+
+    .guardian-wrap {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .guardian-card {
+      flex: 1;
+      min-width: 260px;
+      background: #fafbfc;
+      border-radius: var(--radius);
+      padding: 14px 16px;
+    }
+    .guardian-card-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--gov-blue);
+      margin-bottom: 10px;
+    }
+    .guardian-card .info-item {
+      margin-bottom: 4px;
+    }
+
+    .alert-feedback-list {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .alert-feedback-item {
+      background: #fafbfc;
+      border-radius: var(--radius);
+      padding: 14px 16px;
+    }
+    .alert-feedback-time {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--gov-blue);
+      margin-bottom: 8px;
+    }
+    .alert-feedback-row {
+      display: flex;
+      gap: 6px;
+      font-size: 13px;
+      line-height: 1.7;
+    }
+    .alert-feedback-row .label {
+      color: var(--text-muted);
+      flex-shrink: 0;
+      min-width: 48px;
+    }
+    .alert-feedback-row .value {
+      color: var(--text);
+    }
+
+    .report-section {
+      margin-bottom: 18px;
+    }
+    .report-section-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .report-section-title i {
+      font-size: 12px;
+      color: var(--gov-blue-light);
+    }
+    .report-section-body {
+      font-size: 13px;
+      line-height: 1.9;
+      color: var(--text-secondary);
+      background: #fafbfc;
+      border-radius: var(--radius);
+      padding: 14px 16px;
+      white-space: pre-wrap;
     }
 
     .risk-badge {
@@ -183,37 +315,25 @@
     .risk-badge.medium { background: var(--orange-light); color: var(--orange); }
     .risk-badge.low { background: var(--green-light); color: var(--green); }
 
-    .analysis-section {
-      margin-bottom: 20px;
-    }
-    .analysis-section-title {
-      font-size: 14px;
-      font-weight: 700;
-      color: var(--gov-blue);
-      margin-bottom: 10px;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-    .analysis-section-title i {
-      font-size: 12px;
-      color: var(--gov-blue-light);
-    }
-    .analysis-section-body {
-      font-size: 13px;
-      line-height: 1.8;
-      color: var(--text-secondary);
-      background: #fafbfc;
-      border-radius: var(--radius);
-      padding: 14px 16px;
-      white-space: pre-wrap;
-    }
-
     .sidebar-pagination {
       padding: 10px 12px;
       border-top: 1px solid var(--border-light);
       display: flex;
       justify-content: center;
+    }
+
+    @media (max-width: 992px) {
+      .ai-layout {
+        flex-direction: column;
+        height: auto;
+      }
+      .ai-sidebar.panel {
+        width: 100%;
+        max-height: 50vh;
+      }
+      .ai-main.panel {
+        min-height: 50vh;
+      }
     }
   </style>
 </head>
@@ -230,6 +350,7 @@
         <a class="nav-item" data-nav="alert" href="/"><i class="fas fa-star" style="color:#facc15;"></i>预警中心</a>
         <a class="nav-item" data-nav="report" href="/report"><i class="fas fa-chart-bar"></i>统计报表</a>
         <a class="nav-item active" data-nav="ai_portrait" href="/ai-portrait"><i class="fas fa-robot"></i>AI画像</a>
+        <a class="nav-item" data-nav="archive_report" href="/archive-report"><i class="fas fa-file-alt"></i>AI档案</a>
         <a class="nav-item" id="navUsers" href="/users" style="display:none"><i class="fas fa-users-cog"></i>用户管理</a>
       </nav>
     </div>
@@ -274,13 +395,13 @@
         <div class="sidebar-pagination" id="pagination"></div>
       </div>
 
-      <!-- 右侧：AI 分析结果 -->
+      <!-- 右侧：AI 档案 -->
       <div class="ai-main panel" id="analysisPanel">
         <div class="analysis-placeholder">
           <i class="fas fa-robot"></i>
           <div style="text-align:center;">
-            <div style="font-size:16px;font-weight:600;color:var(--text);margin-bottom:4px;">AI 智能画像</div>
-            <div style="font-size:13px;">在左侧选择人员，点击「生成画像」即可开始智能分析</div>
+            <div style="font-size:16px;font-weight:600;color:var(--text);margin-bottom:4px;">AI 智能档案</div>
+            <div style="font-size:13px;">在左侧选择人员，即可查看AI档案与巡逻防范报告</div>
           </div>
         </div>
       </div>

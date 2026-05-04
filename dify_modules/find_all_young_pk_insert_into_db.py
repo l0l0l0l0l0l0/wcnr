@@ -305,12 +305,21 @@ def query_capture_records(face_path, start_time=None):
 
             print(f"Status: {response.status_code}")
 
-            # 正确处理编码：先尝试 UTF-8，失败则回退 GBK
-            try:
-                _ = response.content.decode('utf-8')
-                response.encoding = 'utf-8'
-            except UnicodeDecodeError:
-                response.encoding = 'gbk'
+            # 优先使用响应头声明的编码，否则用 chardet 检测
+            content_type = response.headers.get('Content-Type', '')
+            if 'charset=' in content_type:
+                response.encoding = content_type.split('charset=')[-1].strip().strip('"').strip("'")
+            else:
+                # 优先 UTF-8，验证解码后是否包含合法中文
+                try:
+                    decoded = response.content.decode('utf-8')
+                    # 简单校验：如果解码成功但包含替换字符，说明可能是 GBK
+                    if '�' in decoded:
+                        response.encoding = 'gbk'
+                    else:
+                        response.encoding = 'utf-8'
+                except UnicodeDecodeError:
+                    response.encoding = 'gbk'
 
             if response.status_code != 200:
                 logging.error(

@@ -792,6 +792,14 @@
   font-weight: 700;
   margin-left: 4px;
   vertical-align: middle;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.detail-ai-badge:hover {
+  background: #1d4ed8;
+  transform: scale(1.15);
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.4);
 }
 
 /* Map */

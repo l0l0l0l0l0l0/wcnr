@@ -69,6 +69,12 @@ def get_alerts(
     keyword: Optional[str] = Query(None),
     status: Optional[str] = Query(None),
     camera_type: Optional[str] = Query(None),
+    date_start: Optional[str] = Query(None, description="起始日期 YYYY-MM-DD"),
+    date_end: Optional[str] = Query(None, description="结束日期 YYYY-MM-DD"),
+    hour_start: Optional[str] = Query(None, description="起始时 HH"),
+    hour_end: Optional[str] = Query(None, description="结束时 HH"),
+    minute_start: Optional[str] = Query(None, description="起始分 MM"),
+    minute_end: Optional[str] = Query(None, description="结束分 MM"),
     conn=Depends(get_db),
 ):
     """预警列表：capture_records LEFT JOIN young_peoples"""
@@ -86,6 +92,30 @@ def get_alerts(
             if status in status_map:
                 where_clauses.append("cr.is_processed = %s")
                 params.append(status_map[status])
+
+        # Date range filter
+        if date_start:
+            where_clauses.append("DATE(cr.capture_time) >= %s")
+            params.append(date_start)
+        if date_end:
+            where_clauses.append("DATE(cr.capture_time) <= %s")
+            params.append(date_end)
+
+        # Hour range filter (when time period = hour)
+        if hour_start:
+            where_clauses.append("HOUR(cr.capture_time) >= %s")
+            params.append(int(hour_start))
+        if hour_end:
+            where_clauses.append("HOUR(cr.capture_time) <= %s")
+            params.append(int(hour_end))
+
+        # Minute range filter (when time period = minute, filters within each hour)
+        if minute_start:
+            where_clauses.append("MINUTE(cr.capture_time) >= %s")
+            params.append(int(minute_start))
+        if minute_end:
+            where_clauses.append("MINUTE(cr.capture_time) <= %s")
+            params.append(int(minute_end))
 
         where_sql = (" WHERE " + " AND ".join(where_clauses)) if where_clauses else ""
 

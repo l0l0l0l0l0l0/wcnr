@@ -590,3 +590,65 @@ CREATE TABLE IF NOT EXISTS alert_process_logs (
 ALTER TABLE young_peoples
     ADD COLUMN IF NOT EXISTS data_source VARCHAR(50) DEFAULT 'manual' COMMENT '数据来源: manual/jingzong/renkou/other',
     ADD COLUMN IF NOT EXISTS source_import_log_id INT DEFAULT NULL COMMENT '来源导入记录ID';
+
+
+-- ==================== AI档案人员扩展信息表 ====================
+CREATE TABLE IF NOT EXISTS person_profiles (
+    id                  INT AUTO_INCREMENT PRIMARY KEY COMMENT 'ID',
+    id_card_number      VARCHAR(18) NOT NULL COMMENT '关联人员身份证号',
+    birth_date          DATE DEFAULT NULL COMMENT '出生日期',
+    native_place        VARCHAR(255) DEFAULT NULL COMMENT '籍贯',
+    household_address   VARCHAR(255) DEFAULT NULL COMMENT '户籍地',
+    education           VARCHAR(50) DEFAULT NULL COMMENT '学历',
+    school              VARCHAR(255) DEFAULT NULL COMMENT '学校',
+    enrollment_date     DATE DEFAULT NULL COMMENT '入学时间',
+    graduation_date     DATE DEFAULT NULL COMMENT '离校时间',
+    subordinate_bureau  VARCHAR(255) DEFAULT NULL COMMENT '所属分局',
+    person_type_tag     VARCHAR(100) DEFAULT NULL COMMENT '人员类型标签',
+    delivery_time       VARCHAR(50) DEFAULT NULL COMMENT '送生时间',
+    delivery_unit       VARCHAR(255) DEFAULT NULL COMMENT '送生单位',
+    is_serious_bad_minor VARCHAR(10) DEFAULT NULL COMMENT '是否严重不良未成年人',
+    personal_phone      VARCHAR(50) DEFAULT NULL COMMENT '本人电话',
+    guardian_phone      VARCHAR(255) DEFAULT NULL COMMENT '监护人电话',
+    remarks             TEXT DEFAULT NULL COMMENT '备注',
+    bad_behavior_records TEXT DEFAULT NULL COMMENT '不良行为记录',
+    racing_behavior     VARCHAR(255) DEFAULT NULL COMMENT '飙车炸街行为',
+    analysis_phone      VARCHAR(50) DEFAULT NULL COMMENT '综合分析本人手机号',
+    created_at          TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    updated_at          TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    UNIQUE KEY uk_id_card_number (id_card_number),
+    INDEX idx_id_card_number (id_card_number)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AI档案人员扩展信息表';
+
+
+-- ==================== 人员监护人信息表 ====================
+CREATE TABLE IF NOT EXISTS person_guardians (
+    id                  INT AUTO_INCREMENT PRIMARY KEY COMMENT 'ID',
+    person_id_card      VARCHAR(18) NOT NULL COMMENT '关联人员身份证号',
+    guardian_type       VARCHAR(20) NOT NULL COMMENT '监护人类型: 母亲/父亲/其他',
+    name                VARCHAR(100) DEFAULT NULL COMMENT '姓名',
+    contact             VARCHAR(50) DEFAULT NULL COMMENT '联系方式',
+    id_card_number      VARCHAR(18) DEFAULT NULL COMMENT '身份证号',
+    address             VARCHAR(255) DEFAULT NULL COMMENT '居住地',
+    relation            VARCHAR(20) DEFAULT NULL COMMENT '关系: 母子/父子等',
+    created_at          TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    updated_at          TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    INDEX idx_person_id_card (person_id_card)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='人员监护人信息表';
+
+
+-- ==================== person_profiles 演示数据 (3条) ====================
+INSERT INTO person_profiles (id_card_number, birth_date, native_place, household_address, education, school, enrollment_date, graduation_date, subordinate_bureau, person_type_tag, delivery_time, delivery_unit, is_serious_bad_minor, personal_phone, guardian_phone, remarks, bad_behavior_records, racing_behavior, analysis_phone) VALUES
+('450202199001011234', '1990-01-01', '广西柳州', '柳州市城中区解放北路1号', '初中', '柳州市第十五中学', '2003-09-01', '2006-06-30', '城中分局', '重点管控未成年人', '2024-03-15 10:30', '城中分局刑侦大队', '否', '13800001001', '13900001001', '该人员近期活动频繁，需重点关注', '2024年5月因打架被教育', '无', '13800001001'),
+('450202199505052345', '1995-05-05', '广西桂林', '柳州市鱼峰区鱼峰路2号', '高中', '柳州市第一中学', '2005-09-01', '2008-06-30', '鱼峰分局', '关注人员', '2024-06-20 14:00', '鱼峰分局治安大队', '否', '13800002001', '13900002001', '家庭情况复杂，监护人需加强管教', '2024年8月因偷窃被训诫', '有疑似飙车行为', '13800002001'),
+('450202198808083456', '1988-08-08', '广西南宁', '柳州市柳南区柳邕路3号', '初中', '柳州市第四十六中学', '2003-09-01', '2006-06-30', '柳南分局', '涉毒关注未成年人', '2024-01-10 09:00', '柳南分局禁毒大队', '是', '13800003001', '13900003001', '有吸毒史，需定期尿检', '2023年因吸毒被强制戒毒', '无', '13800003001');
+
+
+-- ==================== person_guardians 演示数据 (3人x2监护人=6条) ====================
+INSERT INTO person_guardians (person_id_card, guardian_type, name, contact, id_card_number, address, relation) VALUES
+('450202199001011234', '父亲', '张国强', '13900001001', '450202196505051111', '柳州市城中区解放北路1号', '父子'),
+('450202199001011234', '母亲', '李秀英', '13900001002', '450202196806062222', '柳州市城中区解放北路1号', '母子'),
+('450202199505052345', '父亲', '李志强', '13900002001', '450202196307073333', '柳州市鱼峰区鱼峰路2号', '父子'),
+('450202199505052345', '母亲', '陈美玲', '13900002002', '450202196608084444', '柳州市鱼峰区鱼峰路2号', '母子'),
+('450202198808083456', '父亲', '王大伟', '13900003001', '450202196409095555', '柳州市柳南区柳邕路3号', '父子'),
+('450202198808083456', '其他', '赵阿姨', '13900003002', '450202197010106666', '柳州市柳南区壶西大道8号', '邻居');
