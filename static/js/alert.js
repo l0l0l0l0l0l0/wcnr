@@ -661,7 +661,7 @@ async function openAlertDetail(dbId) {
     document.getElementById('detailLib').textContent = d.control_lib || '--';
     document.getElementById('detailName').textContent = d.name || '--';
     document.getElementById('detailIdCard').innerHTML = (d.person_id_card || '--') +
-      (d.person_id_card ? ' <span class="detail-ai-badge" onclick="event.stopPropagation();window.location.href=\'/ai-portrait?id_card_number=\' + encodeURIComponent(\'' + escapeHtml(d.person_id_card) + '\')">AI</span>' : '');
+      (d.person_id_card ? ' <span class="detail-ai-badge" onclick="event.stopPropagation();openAiReport(\'' + escapeHtml(d.person_id_card) + '\')">AI</span>' : '');
     document.getElementById('detailGender').textContent = d.gender || '--';
 
     const tags = d.person_tag ? d.person_tag.split(/[,，、]/).filter(Boolean) : [];

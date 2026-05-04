@@ -1184,3 +1184,205 @@
     width: 100%;
   }
 }
+
+/* ===================== AI Report Modal ===================== */
+
+.ai-report-modal {
+  /*width: 900px;
+  max-height: 85vh;
+  background: var(--white);
+  border-radius: 12px;
+  box-shadow: var(--shadow-hover);
+  overflow: hidden;*/
+    width: 100vw;
+  height: 100vh;
+  max-height: 100vh;
+  background: var(--white);
+  border-radius: 0;
+  box-shadow: none;
+  overflow: hidden;
+}
+
+.ai-report-modal-body {
+  /*
+  overflow-y: auto;
+  max-height: calc(85vh - 56px);
+  padding: 0;*/
+  overflow-y: auto;
+  max-height: calc(100vh - 56px);
+  height: calc(100vh - 56px);
+  padding: 0;
+}
+
+.ai-report-content {
+  padding: 20px 24px;
+}
+
+.ai-report-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 80px 0;
+  color: var(--text-muted);
+  gap: 12px;
+}
+
+.ai-report-loading i {
+  font-size: 28px;
+  color: var(--gov-blue-light);
+}
+
+.ai-report-error {
+  text-align: center;
+  padding: 40px 0;
+  color: var(--red);
+  font-size: 14px;
+}
+
+.ai-report-section {
+  margin-bottom: 35px;
+}
+
+.ai-report-section-title {
+  font-size: 18px;
+  font-weight: bold;
+  color: var(--text);
+  margin-bottom: 18px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.ai-report-subsection {
+  margin-bottom: 22px;
+}
+
+.ai-report-subsection-title {
+  font-size: 15px;
+  font-weight: bold;
+  color: var(--text);
+  margin-bottom: 12px;
+}
+
+.ai-report-info-grid {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.ai-report-info-row {
+  width: 100%;
+  margin-bottom: 6px;
+  display: flex;
+  align-items: flex-start;
+}
+
+.ai-report-info-row .label {
+  color: var(--text);
+  font-weight: normal;
+  white-space: nowrap;
+}
+
+.ai-report-info-row .value {
+  color: var(--text);
+  word-break: break-all;
+}
+
+.ai-report-info-row.indent {
+  padding-left: 20px;
+}
+
+.guardian-block {
+  margin-bottom: 14px;
+  padding: 10px 0;
+  border-bottom: 1px dashed var(--border-light);
+}
+
+.guardian-block:last-child {
+  border-bottom: none;
+}
+
+.alert-record,
+.history-record {
+  margin-bottom: 14px;
+  padding-bottom: 10px;
+  border-bottom: 1px dashed var(--border-light);
+}
+
+.alert-record:last-child,
+.history-record:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+  padding-bottom: 0;
+}
+
+.ai-report-text-content {
+  color: var(--text);
+  line-height: 1.8;
+}
+
+.ai-report-text-content p {
+  margin-bottom: 8px;
+}
+
+.suggestion-list p {
+  margin-bottom: 10px;
+  line-height: 1.7;
+}
+
+.suggestion-list strong {
+  color: var(--text);
+}
+
+/* LLM loading & error states */
+.ai-report-llm-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px 0;
+  color: var(--gov-blue-light);
+  gap: 8px;
+  font-size: 14px;
+}
+
+.ai-report-llm-loading i {
+  font-size: 18px;
+}
+
+.ai-report-llm-error {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px 0;
+  color: var(--red);
+  gap: 8px;
+  font-size: 14px;
+}
+
+.ai-report-llm-error button {
+  margin-left: 12px;
+  padding: 4px 14px;
+  border: 1px solid var(--red);
+  border-radius: var(--radius-sm);
+  background: var(--white);
+  color: var(--red);
+  cursor: pointer;
+  font-size: 13px;
+  transition: all 0.2s;
+}
+
+.ai-report-llm-error button:hover {
+  background: var(--red);
+  color: #fff;
+}
+
+.ai-report-llm-section .ai-report-llm-loading,
+.ai-report-llm-section .ai-report-llm-error {
+  border-top: 1px dashed var(--border-light);
+  margin-top: 8px;
+  padding-top: 16px;
+}
+
+.ai-report-llm-loaded .ai-report-llm-loading,
+.ai-report-llm-loaded .ai-report-llm-error {
+  display: none;
+}

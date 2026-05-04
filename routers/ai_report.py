@@ -7,8 +7,9 @@ import hashlib
 import json
 import logging
 import re
+import time
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, BackgroundTasks, Depends
 from pymysql.cursors import DictCursor
 from datetime import datetime, date
 
@@ -18,9 +19,9 @@ router = APIRouter(prefix="/api/ai-report", tags=["AI档案"])
 
 logger = logging.getLogger(__name__)
 
-# Simple in-memory cache for LLM-generated report sections
 _llm_cache = {}
 _LLM_CACHE_MAX = 200
+_llm_pending = {}  # cache_key -> {"status": "pending"|"done"|"error", "timestamp": float}
 
 
 def calc_age(birth_date):
@@ -36,7 +37,6 @@ def calc_age(birth_date):
 
 
 def _get_cache_key(id_card, captures):
-    """Generate a cache key from person ID and capture data hash"""
     capture_str = json.dumps(
         [(c.get('capture_time', ''), c.get('camera_name', ''), c.get('camera_index_code', ''))
          for c in captures],
@@ -121,12 +121,10 @@ def _build_llm_prompt(person, profile, captures):
 
 def _parse_llm_response(text, name):
     """解析LLM返回的JSON文本，提取risk_analysis、suggestions、conclusion"""
-    # Try to extract JSON from markdown code blocks first
     json_match = re.search(r'```(?:json)?\s*([\s\S]*?)```', text)
     if json_match:
         text = json_match.group(1).strip()
 
-    # Try to find JSON object directly
     brace_match = re.search(r'\{[\s\S]*\}', text)
     if brace_match:
         text = brace_match.group(0)
@@ -161,145 +159,13 @@ def _parse_llm_response(text, name):
     }
 
 
-def generate_patrol_report(person, profile, captures):
-    """基于数据生成巡逻防范报告，section 四/五/结论使用LLM生成"""
-    name = person.get('name', 'xxx')
-    age = person.get('age', '')
-    gender = person.get('gender', '')
-    address = person.get('address', '')
-    police_station = person.get('police_station', 'xxx派出所')
-    school = profile.get('school', '') if profile else ''
-    bureau = profile.get('subordinate_bureau', 'xxx分局') if profile else 'xxx分局'
-    person_type = profile.get('person_type_tag', '专门学校') if profile else '专门学校'
-
-    basic_info = {
-        'name': name,
-        'gender': gender,
-        'age': age,
-        'id_card': person.get('id_card_number', ''),
-        'native_place': profile.get('native_place', 'xx') if profile else 'xx',
-        'household_address': profile.get('household_address', 'xx') if profile else 'xx',
-        'residence': address or 'xx',
-        'education': profile.get('education', '初中') if profile else '初中',
-        'school': school or '实验中学八(2)',
-        'enrollment_date': profile.get('enrollment_date', '2025年3月11日') if profile else '2025年3月11日',
-        'graduation_date': profile.get('graduation_date', '2025年6月24日') if profile else '2025年6月24日',
-        'subordinate_bureau': bureau,
-        'police_station': police_station,
-        'person_type_tag': person_type
-    }
-
-    history_records = []
-    for cap in captures:
-        capture_time = cap.get('capture_time')
-        if isinstance(capture_time, datetime):
-            capture_time = capture_time.strftime('%Y-%m-%d %H:%M:%S')
-        history_records.append({
-            'time': capture_time or '2025-10-04 19:18:13',
-            'location': cap.get('camera_name', '大酒店门口'),
-            'situation': '未成年人出现在该地点',
-            'action': f'{police_station}已联系其监护人（父亲）{name}，让其配合民警对{name}开展"三教"工作，{name}表示会加强对{name}的监管。'
-        })
-
-    if len(history_records) < 3:
-        history_records.extend([
-            {'time': '2025-10-12 08:37:47', 'location': '移动厅门口',
-             'situation': '未成年人出现在该地点', 'action': f'{police_station}到达现场，未见{name}。'},
-            {'time': '2025-10-18 08:28:38', 'location': 'xxxx',
-             'situation': '未成年人出现在该地点', 'action': f'{police_station}已通知{name}家属将其带回。'},
-            {'time': '2025-10-18 08:28:55', 'location': '路口对面',
-             'situation': '未成年人出现在该地点', 'action': f'{police_station}已通知{name}家属将其带回。'},
-            {'time': '2025-10-26 11:22:01', 'location': '大酒店对面',
-             'situation': '未成年人出现在该地点', 'action': f'{police_station}已通知监护人带回。'}
-        ])
-
-    companion_info = f'目前没有明确的同行人信息。在多次预警记录中，均未提及{name}的具体同行人。'
-
-    # --- Template fallback for sections 四/五/结论 ---
-    template_risk_analysis = {
-        'frequent_places': f'{name}多次出现在酒店、移动厅、酒吧等公共场所，这些地方通常是未成年人不宜进入的区域。',
-        'time_pattern': f'预警记录显示，{name}多在早晨和下午出现，这可能是他放学后或周末的时间段。',
-        'family_supervision': f'尽管派出所多次通知其监护人加强监管，但{name}仍然多次出现在公共场所，说明家庭监管存在一定的不足。',
-        'potential_risk': f'频繁出现在这些场所可能会增加其接触不良人群的风险，从而导致不良行为的发生。'
-    }
-    template_suggestions = [
-        f'针对{name}经常出现的地点，如大酒店、移动厅、酒吧等，增加巡逻频次，特别是在早晨和下午时间段。',
-        '与社区工作人员和学校老师建立联动机制，共同关注xxx的行为动态，及时发现并干预。',
-        f'继续与{name}的监护人保持沟通，督促其履行监管责任，必要时可提供家庭教育指导。',
-        f'建议学校或社区为{name}提供心理辅导，帮助其树立正确的价值观和行为规范。',
-        '派出所应定期回访xxx的家庭，了解其生活和学习状况，及时发现问题并采取措施。'
-    ]
-    template_conclusion = f'通过对{name}的历史预警记录和行为模式的分析，可以看出他在家庭监管和自我管理方面存在一定的问题。为了保障其健康成长，需要多方面的共同努力，加强对其的监管和引导，希望上述建议能够得到有效实施，减少潜在的风险。'
-
-    # --- Try LLM generation for sections 四/五/结论 ---
-    risk_analysis = template_risk_analysis
-    suggestions = template_suggestions
-    conclusion = template_conclusion
-
-    id_card = person.get('id_card_number', '')
-    cache_key = _get_cache_key(id_card, captures) if id_card else None
-
-    # Check cache first
-    if cache_key and cache_key in _llm_cache:
-        logger.info(f"[AI Report] LLM cache hit for {id_card}")
-        cached = _llm_cache[cache_key]
-        risk_analysis = cached['risk_analysis']
-        suggestions = cached['suggestions']
-        conclusion = cached['conclusion']
-    else:
-        try:
-            from services.ai_llm import call_llm
-            prompt = _build_llm_prompt(person, profile, captures)
-            logger.info(f"[AI Report] Calling LLM for {name} ({id_card})")
-            raw_response = call_llm(prompt)
-            llm_result = _parse_llm_response(raw_response, name)
-            risk_analysis = llm_result['risk_analysis']
-            suggestions = llm_result['suggestions']
-            conclusion = llm_result['conclusion']
-
-            # Cache the result
-            if cache_key:
-                if len(_llm_cache) >= _LLM_CACHE_MAX:
-                    keys_to_remove = list(_llm_cache.keys())[:_LLM_CACHE_MAX // 2]
-                    for k in keys_to_remove:
-                        del _llm_cache[k]
-                _llm_cache[cache_key] = llm_result
-
-            logger.info(f"[AI Report] LLM generation successful for {name}")
-        except Exception as e:
-            logger.warning(f"[AI Report] LLM generation failed, using template fallback: {e}")
-
-    return {
-        'basic_info': basic_info,
-        'history_records': history_records,
-        'companion_info': companion_info,
-        'risk_analysis': risk_analysis,
-        'suggestions': suggestions,
-        'conclusion': conclusion
-    }
-
-
-@router.get("/persons")
-def get_persons(conn=Depends(get_db), user=Depends(get_current_user)):
-    with conn.cursor(DictCursor) as cursor:
-        cursor.execute("""
-            SELECT yp.id, yp.name, yp.gender, yp.age, yp.id_card_number,
-                   yp.address, yp.police_station, yp.control_category
-            FROM young_peoples yp
-            ORDER BY yp.id
-        """)
-        persons = cursor.fetchall()
-    return {"success": True, "data": persons}
-
-
-@router.get("/person/{id_card}")
-def get_person_detail(id_card: str, conn=Depends(get_db), user=Depends(get_current_user)):
+def _fetch_person_raw(conn, id_card):
+    """查询人员原始数据（person, profile, guardians, captures）"""
     with conn.cursor(DictCursor) as cursor:
         cursor.execute("SELECT * FROM young_peoples WHERE id_card_number = %s", (id_card,))
         person = cursor.fetchone()
-
         if not person:
-            return {"success": False, "message": "未找到该人员"}
+            return None, None, None, None
 
         cursor.execute("SELECT * FROM person_profiles WHERE id_card_number = %s", (id_card,))
         profile = cursor.fetchone()
@@ -310,7 +176,11 @@ def get_person_detail(id_card: str, conn=Depends(get_db), user=Depends(get_curre
         cursor.execute("SELECT * FROM capture_records WHERE person_id_card = %s ORDER BY capture_time DESC", (id_card,))
         captures = cursor.fetchall()
 
-    # 基础信息
+    return person, profile, guardians, captures
+
+
+def _build_basic_info(person, profile):
+    """构建基础信息字段"""
     birth_date = profile.get('birth_date') if profile else None
     age = calc_age(birth_date)
     if age is None:
@@ -341,12 +211,18 @@ def get_person_detail(id_card: str, conn=Depends(get_db), user=Depends(get_curre
         if v and isinstance(v, date):
             basic_info[k] = v.strftime('%Y年%m月%d日')
 
-    delivery_info = {
+    return basic_info
+
+
+def _build_delivery_info(profile):
+    return {
         'time': profile.get('delivery_time', '3月') if profile else '3月',
         'unit': profile.get('delivery_unit', 'xx派出所') if profile else 'xx派出所'
     }
 
-    other_info = {
+
+def _build_other_info(profile):
+    return {
         'is_serious_bad_minor': profile.get('is_serious_bad_minor', '否') if profile else '否',
         'personal_phone': profile.get('personal_phone', '1xxxx') if profile else '1xxxx',
         'guardian_phone': profile.get('guardian_phone', '1363534543（母亲）, 1385565（父亲）') if profile else '1363534543（母亲）, 1385565（父亲）',
@@ -356,6 +232,8 @@ def get_person_detail(id_card: str, conn=Depends(get_db), user=Depends(get_curre
         'analysis_phone': profile.get('analysis_phone', '135xxxx') if profile else '135xxxx'
     }
 
+
+def _build_alert_records(person, captures):
     alert_records = []
     for cap in captures:
         capture_time = cap.get('capture_time')
@@ -367,8 +245,120 @@ def get_person_detail(id_card: str, conn=Depends(get_db), user=Depends(get_curre
             'situation': '未成年人出现在该地点',
             'detail': f'{person.get("police_station", "xxx派出所")}：目前未发现{person.get("name", "xxx")}有违法犯罪行为。已联系其监护人（父亲）{person.get("name", "xxx")}让其配合民警对{person.get("name", "xxx")}开展"三教"工作，{person.get("name", "xxx")}表示会加强对{person.get("name", "xxx")}的监管。'
         })
+    return alert_records
 
-    patrol_report = generate_patrol_report(person, profile, captures)
+
+def _build_patrol_report_db(person, profile, captures):
+    """构建巡逻防范报告的DB部分（不含LLM）"""
+    name = person.get('name', 'xxx')
+    police_station = person.get('police_station', 'xxx派出所')
+
+    basic_info = {
+        'name': name,
+        'gender': person.get('gender', ''),
+        'age': person.get('age', ''),
+        'id_card': person.get('id_card_number', ''),
+        'native_place': profile.get('native_place', 'xx') if profile else 'xx',
+        'household_address': profile.get('household_address', 'xx') if profile else 'xx',
+        'residence': person.get('address') or 'xx',
+        'education': profile.get('education', '初中') if profile else '初中',
+        'school': profile.get('school', '') if profile else '',
+        'enrollment_date': profile.get('enrollment_date', '2025年3月11日') if profile else '2025年3月11日',
+        'graduation_date': profile.get('graduation_date', '2025年6月24日') if profile else '2025年6月24日',
+        'subordinate_bureau': profile.get('subordinate_bureau', 'xxx分局') if profile else 'xxx分局',
+        'police_station': police_station,
+        'person_type_tag': profile.get('person_type_tag', '专门学校') if profile else '专门学校'
+    }
+
+    history_records = []
+    for cap in captures:
+        capture_time = cap.get('capture_time')
+        if isinstance(capture_time, datetime):
+            capture_time = capture_time.strftime('%Y-%m-%d %H:%M:%S')
+        history_records.append({
+            'time': capture_time or '2025-10-04 19:18:13',
+            'location': cap.get('camera_name', '大酒店门口'),
+            'situation': '未成年人出现在该地点',
+            'action': f'{police_station}已联系其监护人（父亲）{name}，让其配合民警对{name}开展"三教"工作，{name}表示会加强对{name}的监管。'
+        })
+
+    if len(history_records) < 3:
+        history_records.extend([
+            {'time': '2025-10-12 08:37:47', 'location': '移动厅门口',
+             'situation': '未成年人出现在该地点', 'action': f'{police_station}到达现场，未见{name}。'},
+            {'time': '2025-10-18 08:28:38', 'location': 'xxxx',
+             'situation': '未成年人出现在该地点', 'action': f'{police_station}已通知{name}家属将其带回。'},
+            {'time': '2025-10-18 08:28:55', 'location': '路口对面',
+             'situation': '未成年人出现在该地点', 'action': f'{police_station}已通知{name}家属将其带回。'},
+            {'time': '2025-10-26 11:22:01', 'location': '大酒店对面',
+             'situation': '未成年人出现在该地点', 'action': f'{police_station}已通知监护人带回。'}
+        ])
+
+    companion_info = f'目前没有明确的同行人信息。在多次预警记录中，均未提及{name}的具体同行人。'
+
+    return {
+        'basic_info': basic_info,
+        'history_records': history_records,
+        'companion_info': companion_info,
+    }
+
+
+def _run_llm_task(person, profile, captures, cache_key):
+    """后台任务：调用LLM生成分析结果并缓存"""
+    name = person.get('name', 'xxx')
+    try:
+        from services.ai_llm import call_llm
+        prompt = _build_llm_prompt(person, profile, captures)
+        logger.info(f"[AI Report] Background LLM call started for {name}")
+        raw_response = call_llm(prompt)
+        llm_result = _parse_llm_response(raw_response, name)
+
+        # Cache the result
+        if len(_llm_cache) >= _LLM_CACHE_MAX:
+            keys_to_remove = list(_llm_cache.keys())[:_LLM_CACHE_MAX // 2]
+            for k in keys_to_remove:
+                del _llm_cache[k]
+        _llm_cache[cache_key] = llm_result
+
+        _llm_pending[cache_key] = {"status": "done", "timestamp": time.time()}
+        logger.info(f"[AI Report] Background LLM generation successful for {name}")
+    except Exception as e:
+        logger.warning(f"[AI Report] Background LLM generation failed: {e}")
+        _llm_pending[cache_key] = {"status": "error", "timestamp": time.time()}
+
+
+def _get_llm_status(cache_key):
+    """获取LLM生成状态"""
+    if cache_key in _llm_cache:
+        return "cached"
+    if cache_key in _llm_pending:
+        entry = _llm_pending[cache_key]
+        # 超过180秒的pending视为过期
+        if entry["status"] == "pending" and time.time() - entry["timestamp"] > 180:
+            del _llm_pending[cache_key]
+            return "expired"
+        return entry["status"]
+    return "none"
+
+
+# --- API Endpoints ---
+
+
+@router.get("/person/{id_card}/db")
+def get_person_db(id_card: str, conn=Depends(get_db), user=Depends(get_current_user)):
+    """快速返回数据库数据（不含LLM分析）"""
+    person, profile, guardians, captures = _fetch_person_raw(conn, id_card)
+    if not person:
+        return {"success": False, "message": "未找到该人员"}
+
+    basic_info = _build_basic_info(person, profile)
+    delivery_info = _build_delivery_info(profile)
+    other_info = _build_other_info(profile)
+    alert_records = _build_alert_records(person, captures)
+    patrol_report_db = _build_patrol_report_db(person, profile, captures)
+
+    cache_key = _get_cache_key(id_card, captures)
+    llm_status = _get_llm_status(cache_key)
 
     return {
         "success": True,
@@ -378,6 +368,59 @@ def get_person_detail(id_card: str, conn=Depends(get_db), user=Depends(get_curre
             "delivery_info": delivery_info,
             "other_info": other_info,
             "alert_records": alert_records,
-            "patrol_report": patrol_report
-        }
+            "patrol_report": patrol_report_db,
+        },
+        "cache_key": cache_key,
+        "llm_status": llm_status,
     }
+
+
+@router.get("/person/{id_card}/llm")
+def start_llm_generation(id_card: str, background_tasks: BackgroundTasks, conn=Depends(get_db), user=Depends(get_current_user)):
+    """启动LLM分析生成（后台任务）"""
+    person, profile, _, captures = _fetch_person_raw(conn, id_card)
+    if not person:
+        return {"success": False, "message": "未找到该人员"}
+
+    cache_key = _get_cache_key(id_card, captures)
+
+    # 已缓存，直接返回
+    if cache_key in _llm_cache:
+        return {"success": True, "status": "done", "cache_key": cache_key, "data": _llm_cache[cache_key]}
+
+    # 正在生成中
+    if cache_key in _llm_pending:
+        entry = _llm_pending[cache_key]
+        if entry["status"] == "pending" and time.time() - entry["timestamp"] > 180:
+            del _llm_pending[cache_key]
+        elif entry["status"] == "done":
+            # 已完成但还在pending字典中
+            return {"success": True, "status": "done", "cache_key": cache_key, "data": _llm_cache.get(cache_key)}
+        else:
+            return {"success": True, "status": "pending", "cache_key": cache_key}
+
+    # 启动后台任务
+    _llm_pending[cache_key] = {"status": "pending", "timestamp": time.time()}
+    background_tasks.add_task(_run_llm_task, person, profile, captures, cache_key)
+    return {"success": True, "status": "pending", "cache_key": cache_key}
+
+
+@router.get("/llm-result/{cache_key}")
+def get_llm_result(cache_key: str, user=Depends(get_current_user)):
+    """轮询LLM生成结果"""
+    if cache_key in _llm_cache:
+        return {"success": True, "status": "done", "data": _llm_cache[cache_key]}
+
+    if cache_key in _llm_pending:
+        entry = _llm_pending[cache_key]
+        if entry["status"] == "pending" and time.time() - entry["timestamp"] > 180:
+            del _llm_pending[cache_key]
+            return {"success": True, "status": "error"}
+        if entry["status"] == "done":
+            return {"success": True, "status": "done", "data": _llm_cache.get(cache_key)}
+        if entry["status"] == "error":
+            del _llm_pending[cache_key]
+            return {"success": True, "status": "error"}
+        return {"success": True, "status": "pending"}
+
+    return {"success": True, "status": "none"}

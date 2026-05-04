@@ -21,7 +21,6 @@
         <a class="nav-item" data-nav="control" href="/control"><i class="fas fa-bullhorn"></i>布控管理</a>
         <a class="nav-item active" data-nav="alert" href="/"><i class="fas fa-star" style="color:#facc15;"></i>预警中心</a>
         <a class="nav-item" data-nav="report" href="/report"><i class="fas fa-chart-bar"></i>统计报表</a>
-        <a class="nav-item" data-nav="archive_report" href="/archive-report"><i class="fas fa-file-alt"></i>AI档案</a>
         <a class="nav-item" id="navUsers" href="/users" style="display:none"><i class="fas fa-users-cog"></i>用户管理</a>
       </nav>
     </div>
@@ -346,7 +345,19 @@
     </div>
   </div>
 
+  <!-- AI Report Modal -->
+  <div class="modal-overlay" id="aiReportOverlay">
+    <div class="modal ai-report-modal">
+      <div class="modal-header">
+        <h3 id="aiReportTitle">AI档案</h3>
+        <button class="modal-close" onclick="closeAiReport()"><i class="fas fa-xmark"></i></button>
+      </div>
+      <div class="ai-report-modal-body" id="aiReportBody"></div>
+    </div>
+  </div>
+
   <script src="/static/js/shared.js?v=20260501"></script>
   <script src="/static/js/alert.js?v=20260501"></script>
+  <script src="/static/js/ai_report_modal.js?v=20260504"></script>
 </body>
 </html>
