@@ -51,7 +51,7 @@ def get_report_stats(conn=Depends(get_db)):
         total_staff = sum(item["staff"] for item in items)
 
         summary = {
-            "name": "柳州市公安局",
+            "name": "贺州市公安局",
             "alerts": total_alerts,
             "staff": total_staff,
             "rate": total_rate,

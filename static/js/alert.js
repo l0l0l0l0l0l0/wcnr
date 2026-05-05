@@ -298,13 +298,17 @@ async function loadStats() {
 
     const d = result.data;
     const statEls = document.querySelectorAll('.stat-compact-value[data-count]');
-    if (statEls[0]) statEls[0].dataset.count = d.history_total;
-    if (statEls[1]) statEls[1].dataset.count = d.today_total;
-    if (statEls[2]) statEls[2].dataset.count = d.pending_sign;
-    if (statEls[3]) statEls[3].dataset.count = d.pending_feedback;
-    if (statEls[4]) statEls[4].dataset.count = d.feedback_done;
-
-    animateNumbers();
+    // 只更新历史预警和今日预警，这两个是全局固定值
+    if (statEls[0]) {
+      statEls[0].dataset.count = d.history_total;
+      statEls[0].textContent = d.history_total.toLocaleString();
+    }
+    if (statEls[1]) {
+      statEls[1].dataset.count = d.today_total;
+      statEls[1].textContent = d.today_total.toLocaleString();
+    }
+    // 待签收、待反馈、已反馈由 loadAlerts 根据当前过滤条件动态更新
+    // 不调用 animateNumbers() 避免覆盖 loadAlerts 已经更新的值
   } catch (e) {
     console.error('加载统计数据失败:', e);
   }
@@ -351,8 +355,40 @@ async function loadAlerts(page = 1, perPage = 20) {
     updateResultCount(total);
     renderPagination('pagination', page, pages, 'goToPage');
     setTimeout(() => animateCards(), 50);
+
+    // 根据当前过滤条件下的实际卡片状态更新顶部统计
+    updateStatsFromItems(items);
   } catch (e) {
     console.error('加载预警列表失败:', e);
+  }
+}
+
+function updateStatsFromItems(items) {
+  let pendingSign = 0;
+  let pendingFeedback = 0;
+  let feedbackDone = 0;
+  let signed = 0;
+
+  items.forEach(item => {
+    if (item.status === '待签收') pendingSign++;
+    else if (item.status === '待反馈') pendingFeedback++;
+    else if (item.status === '已反馈') feedbackDone++;
+    else if (item.status === '已签收') signed++;
+  });
+
+  const statEls = document.querySelectorAll('.stat-compact-value[data-count]');
+  // 只更新待签收、待反馈、已反馈，不调用 animateNumbers() 避免覆盖历史预警和今日预警
+  if (statEls[2]) {
+    statEls[2].dataset.count = pendingSign;
+    statEls[2].textContent = pendingSign.toLocaleString();
+  }
+  if (statEls[3]) {
+    statEls[3].dataset.count = pendingFeedback;
+    statEls[3].textContent = pendingFeedback.toLocaleString();
+  }
+  if (statEls[4]) {
+    statEls[4].dataset.count = feedbackDone;
+    statEls[4].textContent = feedbackDone.toLocaleString();
   }
 }
 
@@ -684,6 +720,18 @@ async function openAlertDetail(dbId) {
     const flowContainer = document.getElementById('detailFlowTimeline');
     let flowHtml = '';
 
+    // Always add the initial alert entry at the top
+    flowHtml += `
+      <div class="detail-timeline-item">
+        <div class="detail-timeline-dot warning"></div>
+        <div class="detail-timeline-title"><span>预警</span></div>
+        <div class="detail-timeline-content">
+          <div class="detail-timeline-row"><div class="detail-timeline-label">预警时间：</div><div class="detail-timeline-value">${d.time || '--'}</div></div>
+          <div class="detail-timeline-row"><div class="detail-timeline-label">抓拍时间：</div><div class="detail-timeline-value">${d.snap_time || d.time || '--'}</div></div>
+          <div class="detail-timeline-row"><div class="detail-timeline-label">抓拍地点：</div><div class="detail-timeline-value">${d.location || '--'}</div></div>
+        </div>
+      </div>`;
+
     // Add feedback entries from logs
     if (d.logs && d.logs.length > 0) {
       d.logs.forEach(log => {
@@ -708,18 +756,6 @@ async function openAlertDetail(dbId) {
           </div>`;
       });
     }
-
-    // Always add the initial alert entry at the bottom
-    flowHtml += `
-      <div class="detail-timeline-item">
-        <div class="detail-timeline-dot warning"></div>
-        <div class="detail-timeline-title"><span>预警</span></div>
-        <div class="detail-timeline-content">
-          <div class="detail-timeline-row"><div class="detail-timeline-label">预警时间：</div><div class="detail-timeline-value">${d.time || '--'}</div></div>
-          <div class="detail-timeline-row"><div class="detail-timeline-label">抓拍时间：</div><div class="detail-timeline-value">${d.snap_time || d.time || '--'}</div></div>
-          <div class="detail-timeline-row"><div class="detail-timeline-label">抓拍地点：</div><div class="detail-timeline-value">${d.location || '--'}</div></div>
-        </div>
-      </div>`;
 
     flowContainer.innerHTML = flowHtml;
 
